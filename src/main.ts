@@ -2,6 +2,7 @@ import { app, BrowserWindow, ipcMain, Menu } from "electron";
 import path from "path";
 import os from "os";
 import fs from "fs";
+import { pool } from "./db";
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -25,11 +26,16 @@ function createWindow() {
     mainWindow?.show();
   });
 
-  if (process.env.VITE_DEV_SERVER_URL) {
-    mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL);
-    mainWindow.webContents.openDevTools();
+  const urlDoServidorDev = process.env.VITE_DEV_SERVER_URL;
+
+  if (urlDoServidorDev) {
+    mainWindow.loadURL(urlDoServidorDev);
+
+    const conteudoDaJanela = mainWindow.webContents;
+    conteudoDaJanela.openDevTools();
   } else {
-    mainWindow.loadFile(path.join(__dirname, "../dist/index.html"));
+    const caminhoDoIndex = path.join(__dirname, "../dist/index.html");
+    mainWindow.loadFile(caminhoDoIndex);
   }
 }
 
@@ -94,10 +100,16 @@ ipcMain.handle("canal-ping", async () => {
 });
 
 ipcMain.handle("obter-dados-maquina", async () => {
-  const ramTotalGB = (os.totalmem() / 1024 ** 3).toFixed(2);
+  const memoriaTotalEmBytes = os.totalmem();
+  const ramTotalGB = (memoriaTotalEmBytes / 1024 ** 3).toFixed(2);
+
+  const listaProcessadores = os.cpus();
+  const primeiroProcessador = listaProcessadores[0];
+  const nomeProcessador = primeiroProcessador.model;
+
   return {
     plataforma: os.platform(),
-    processador: os.cpus()[0].model,
+    processador: nomeProcessador,
     memoriaRam: `${ramTotalGB} GB`,
   };
 });
@@ -107,7 +119,11 @@ ipcMain.handle("calcular-imc", async (_event, peso: number, altura: number) => {
     throw new Error("Valores de peso ou altura inválidos.");
   }
 
-  const imc = parseFloat((peso / (altura * altura)).toFixed(2));
+  const alturaAoQuadrado = altura * altura;
+  const imcCalculado = peso / alturaAoQuadrado;
+  const imcFormatado = imcCalculado.toFixed(2);
+  const imc = parseFloat(imcFormatado);
+
   let classificacao = "";
 
   if (imc < 18.5) classificacao = "Abaixo do peso";
@@ -121,7 +137,8 @@ ipcMain.handle("calcular-imc", async (_event, peso: number, altura: number) => {
 ipcMain.handle("registrar-log", async (_event, textoLog: string) => {
   if (!textoLog.trim()) return false;
 
-  const caminhoArquivo = path.join(app.getAppPath(), "logs.txt");
+  const pastaDoApp = app.getAppPath();
+  const caminhoArquivo = path.join(pastaDoApp, "logs.txt");
   const timestamp = new Date().toISOString();
   const linhaLog = `[${timestamp}] ${textoLog}\n`;
 
@@ -132,4 +149,200 @@ ipcMain.handle("registrar-log", async (_event, textoLog: string) => {
     console.error("Falha de escrita no arquivo:", erro);
     return false;
   }
+});
+
+// ===================== CATEGORIAS =====================
+
+ipcMain.handle("listar-categorias", async () => {
+  const resultado = await pool.query(
+    "SELECT id, nome, tipo FROM categorias ORDER BY nome"
+  );
+  return resultado.rows;
+});
+
+ipcMain.handle(
+  "criar-categoria",
+  async (_event, nome: string, tipo: "receita" | "despesa") => {
+    if (!nome.trim()) {
+      throw new Error("O nome da categoria é obrigatório.");
+    }
+    if (tipo !== "receita" && tipo !== "despesa") {
+      throw new Error("O tipo deve ser 'receita' ou 'despesa'.");
+    }
+
+    const resultado = await pool.query(
+      "INSERT INTO categorias (nome, tipo) VALUES ($1, $2) RETURNING id, nome, tipo",
+      [nome, tipo]
+    );
+    return resultado.rows[0];
+  }
+);
+
+ipcMain.handle(
+  "atualizar-categoria",
+  async (_event, id: number, nome: string, tipo: "receita" | "despesa") => {
+    const resultado = await pool.query(
+      "UPDATE categorias SET nome = $1, tipo = $2 WHERE id = $3 RETURNING id, nome, tipo",
+      [nome, tipo, id]
+    );
+
+    if (resultado.rowCount === 0) {
+      throw new Error("Categoria não encontrada.");
+    }
+
+    return resultado.rows[0];
+  }
+);
+
+ipcMain.handle("deletar-categoria", async (_event, id: number) => {
+  const resultado = await pool.query("DELETE FROM categorias WHERE id = $1", [
+    id,
+  ]);
+  return (resultado.rowCount ?? 0) > 0;
+});
+
+// ===================== TRANSAÇÕES =====================
+
+interface FiltrosTransacao {
+  tipo?: "receita" | "despesa";
+  idCategoria?: number;
+  dataInicio?: string;
+  dataFim?: string;
+}
+
+ipcMain.handle(
+  "listar-transacoes",
+  async (_event, filtros: FiltrosTransacao = {}) => {
+    const condicoes: string[] = [];
+    const valores: unknown[] = [];
+
+    if (filtros.tipo) {
+      valores.push(filtros.tipo);
+      condicoes.push(`c.tipo = $${valores.length}`);
+    }
+
+    if (filtros.idCategoria) {
+      valores.push(filtros.idCategoria);
+      condicoes.push(`t.id_categoria = $${valores.length}`);
+    }
+
+    if (filtros.dataInicio) {
+      valores.push(filtros.dataInicio);
+      condicoes.push(`t.data >= $${valores.length}`);
+    }
+
+    if (filtros.dataFim) {
+      valores.push(filtros.dataFim);
+      condicoes.push(`t.data <= $${valores.length}`);
+    }
+
+    const clausulaWhere =
+      condicoes.length > 0 ? `WHERE ${condicoes.join(" AND ")}` : "";
+
+    const consulta = `
+      SELECT
+        t.id,
+        t.descricao,
+        t.valor,
+        t.data,
+        t.id_categoria,
+        c.nome AS categoria_nome,
+        c.tipo AS categoria_tipo
+      FROM transacoes t
+      JOIN categorias c ON c.id = t.id_categoria
+      ${clausulaWhere}
+      ORDER BY t.data DESC, t.id DESC
+    `;
+
+    const resultado = await pool.query(consulta, valores);
+    return resultado.rows;
+  }
+);
+
+ipcMain.handle(
+  "criar-transacao",
+  async (
+    _event,
+    descricao: string,
+    valor: number,
+    data: string,
+    idCategoria: number
+  ) => {
+    if (!descricao.trim()) {
+      throw new Error("A descrição é obrigatória.");
+    }
+    if (!valor || valor <= 0) {
+      throw new Error("O valor deve ser maior que zero.");
+    }
+    if (!data) {
+      throw new Error("A data é obrigatória.");
+    }
+    if (!idCategoria) {
+      throw new Error("A categoria é obrigatória.");
+    }
+
+    const resultado = await pool.query(
+      `INSERT INTO transacoes (descricao, valor, data, id_categoria)
+       VALUES ($1, $2, $3, $4)
+       RETURNING id, descricao, valor, data, id_categoria`,
+      [descricao, valor, data, idCategoria]
+    );
+    return resultado.rows[0];
+  }
+);
+
+ipcMain.handle(
+  "atualizar-transacao",
+  async (
+    _event,
+    id: number,
+    descricao: string,
+    valor: number,
+    data: string,
+    idCategoria: number
+  ) => {
+    const resultado = await pool.query(
+      `UPDATE transacoes
+       SET descricao = $1, valor = $2, data = $3, id_categoria = $4
+       WHERE id = $5
+       RETURNING id, descricao, valor, data, id_categoria`,
+      [descricao, valor, data, idCategoria, id]
+    );
+
+    if (resultado.rowCount === 0) {
+      throw new Error("Transação não encontrada.");
+    }
+
+    return resultado.rows[0];
+  }
+);
+
+ipcMain.handle("deletar-transacao", async (_event, id: number) => {
+  const resultado = await pool.query("DELETE FROM transacoes WHERE id = $1", [
+    id,
+  ]);
+  return (resultado.rowCount ?? 0) > 0;
+});
+
+// ===================== SALDO =====================
+
+ipcMain.handle("obter-saldo", async () => {
+  const resultado = await pool.query(`
+    SELECT
+      COALESCE(SUM(CASE WHEN c.tipo = 'receita' THEN t.valor ELSE 0 END), 0) AS total_receitas,
+      COALESCE(SUM(CASE WHEN c.tipo = 'despesa' THEN t.valor ELSE 0 END), 0) AS total_despesas
+    FROM transacoes t
+    JOIN categorias c ON c.id = t.id_categoria
+  `);
+
+  const { total_receitas, total_despesas } = resultado.rows[0];
+  const totalReceitas = Number(total_receitas);
+  const totalDespesas = Number(total_despesas);
+  const saldo = totalReceitas - totalDespesas;
+
+  return {
+    totalReceitas,
+    totalDespesas,
+    saldo,
+  };
 });
