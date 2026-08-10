@@ -9,11 +9,8 @@ declare global {
         processador: string
         memoriaRam: string
       }>
-      calcularImc: (
-        peso: number,
-        altura: number
-      ) => Promise<{ imc: number; classificacao: string }>
       escreverLog: (mensagem: string) => Promise<boolean>
+      listarFormasPagamento: () => Promise<FormaPagamento[]>
 
       listarCategorias: () => Promise<Categoria[]>
       criarCategoria: (
@@ -63,6 +60,12 @@ interface Categoria {
   tipo: 'receita' | 'despesa'
 }
 
+interface FormaPagamento {
+  id: number
+  nome: string
+  descricao: string
+}
+
 interface Transacao {
   id: number
   descricao: string
@@ -89,6 +92,24 @@ botaoPing?.addEventListener('click', async () => {
   const resposta = await window.api.ping()
   if (respostaPing) respostaPing.textContent = resposta
 })
+
+// ===================== FORMAS DE PAGAMENTO (canal IPC próprio) =====================
+
+const listaFormasPagamentoEl = document.getElementById('lista-formas-pagamento')
+
+async function carregarFormasPagamento() {
+  const formasPagamento = await window.api.listarFormasPagamento()
+
+  if (!listaFormasPagamentoEl) return
+
+  listaFormasPagamentoEl.innerHTML = ''
+
+  formasPagamento.forEach((forma) => {
+    const item = document.createElement('li')
+    item.textContent = `${forma.nome} - ${forma.descricao}`
+    listaFormasPagamentoEl.appendChild(item)
+  })
+}
 
 // ===================== SALDO =====================
 
@@ -373,6 +394,7 @@ async function iniciar() {
   await carregarCategorias()
   await carregarTransacoes()
   await atualizarSaldo()
+  await carregarFormasPagamento()
 }
 
 iniciar()

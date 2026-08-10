@@ -99,6 +99,24 @@ ipcMain.handle("canal-ping", async () => {
   return "pong do Processo Main!";
 });
 
+interface FormaPagamento {
+  id: number;
+  nome: string;
+  descricao: string;
+}
+
+ipcMain.handle("listar-formas-pagamento", async (): Promise<FormaPagamento[]> => {
+  const formasPagamento: FormaPagamento[] = [
+    { id: 1, nome: "Dinheiro", descricao: "Pagamento em espécie" },
+    { id: 2, nome: "Pix", descricao: "Transferência instantânea" },
+    { id: 3, nome: "Cartão de Débito", descricao: "Débito direto na conta" },
+    { id: 4, nome: "Cartão de Crédito", descricao: "Pagamento a prazo, fatura mensal" },
+    { id: 5, nome: "Boleto", descricao: "Pagamento via boleto bancário" },
+  ];
+
+  return formasPagamento;
+});
+
 ipcMain.handle("obter-dados-maquina", async () => {
   const memoriaTotalEmBytes = os.totalmem();
   const ramTotalGB = (memoriaTotalEmBytes / 1024 ** 3).toFixed(2);
@@ -112,26 +130,6 @@ ipcMain.handle("obter-dados-maquina", async () => {
     processador: nomeProcessador,
     memoriaRam: `${ramTotalGB} GB`,
   };
-});
-
-ipcMain.handle("calcular-imc", async (_event, peso: number, altura: number) => {
-  if (!peso || !altura || peso <= 0 || altura <= 0) {
-    throw new Error("Valores de peso ou altura inválidos.");
-  }
-
-  const alturaAoQuadrado = altura * altura;
-  const imcCalculado = peso / alturaAoQuadrado;
-  const imcFormatado = imcCalculado.toFixed(2);
-  const imc = parseFloat(imcFormatado);
-
-  let classificacao = "";
-
-  if (imc < 18.5) classificacao = "Abaixo do peso";
-  else if (imc < 25.0) classificacao = "Peso normal";
-  else if (imc < 29.9) classificacao = "Sobrepeso";
-  else classificacao = "Obesidade";
-
-  return { imc, classificacao };
 });
 
 ipcMain.handle("registrar-log", async (_event, textoLog: string) => {
@@ -324,7 +322,7 @@ ipcMain.handle("deletar-transacao", async (_event, id: number) => {
   return (resultado.rowCount ?? 0) > 0;
 });
 
-// ===================== SALDO =====================
+// ===================== SALDO CONSOLIDADO =====================
 
 ipcMain.handle("obter-saldo", async () => {
   const resultado = await pool.query(`

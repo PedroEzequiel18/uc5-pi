@@ -16,6 +16,6 @@ export const pool = new Pool({
   },
 });
 
-pool.on("error", (erro) => {
+pool.on("error", (erro: Error) => {
   console.error("Erro inesperado no pool de conexões do banco:", erro);
 });
