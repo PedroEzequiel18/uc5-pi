@@ -1,10 +1,11 @@
 import { contextBridge, ipcRenderer } from 'electron'
 
+// Expõe só o necessário pro renderer, mantendo contextIsolation seguro.
 contextBridge.exposeInMainWorld('api', {
   ping: () => ipcRenderer.invoke('canal-ping'),
   obterDadosMaquina: () => ipcRenderer.invoke('obter-dados-maquina'),
   escreverLog: (mensagem: string) => ipcRenderer.invoke('registrar-log', mensagem),
-  listarFormasPagamento: () => ipcRenderer.invoke('listar-formas-pagamento'),
+  listarFormasPagamento: (termo?: string) => ipcRenderer.invoke('listar-formas-pagamento', termo),
 
   // Categorias
   listarCategorias: () => ipcRenderer.invoke('listar-categorias'),

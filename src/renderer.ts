@@ -1,5 +1,6 @@
 export {}
 
+// Avisa o TypeScript que window.api existe (criado pelo preload).
 declare global {
   interface Window {
     api: {
@@ -10,7 +11,7 @@ declare global {
         memoriaRam: string
       }>
       escreverLog: (mensagem: string) => Promise<boolean>
-      listarFormasPagamento: () => Promise<FormaPagamento[]>
+      listarFormasPagamento: (termo?: string) => Promise<FormaPagamento[]>
 
       listarCategorias: () => Promise<Categoria[]>
       criarCategoria: (
@@ -69,7 +70,7 @@ interface FormaPagamento {
 interface Transacao {
   id: number
   descricao: string
-  valor: string
+  valor: string // pg devolve NUMERIC como string
   data: string
   id_categoria: number
   categoria_nome: string
@@ -93,23 +94,73 @@ botaoPing?.addEventListener('click', async () => {
   if (respostaPing) respostaPing.textContent = resposta
 })
 
-// ===================== FORMAS DE PAGAMENTO (canal IPC próprio) =====================
+// ===================== FORMAS DE PAGAMENTO =====================
 
 const listaFormasPagamentoEl = document.getElementById('lista-formas-pagamento')
+const formBuscaPagamentoEl = document.getElementById(
+  'form-busca-pagamento'
+) as HTMLFormElement | null
+const inputBuscaPagamentoEl = document.getElementById(
+  'busca-formas-pagamento'
+) as HTMLInputElement | null
+const erroBuscaPagamentoEl = document.getElementById('erro-busca-pagamento')
+const statusBuscaPagamentoEl = document.getElementById('status-busca-pagamento')
 
-async function carregarFormasPagamento() {
-  const formasPagamento = await window.api.listarFormasPagamento()
-
+// Chama o Main (mesmo canal listar-formas-pagamento) e trata os 3 desfechos:
+// recusa (erro), vazio (nenhum resultado) ou lista encontrada.
+async function carregarFormasPagamento(termo?: string) {
   if (!listaFormasPagamentoEl) return
 
-  listaFormasPagamentoEl.innerHTML = ''
+  try {
+    const formasPagamento = await window.api.listarFormasPagamento(termo)
 
-  formasPagamento.forEach((forma) => {
-    const item = document.createElement('li')
-    item.textContent = `${forma.nome} - ${forma.descricao}`
-    listaFormasPagamentoEl.appendChild(item)
-  })
+    if (erroBuscaPagamentoEl) erroBuscaPagamentoEl.textContent = ''
+    listaFormasPagamentoEl.innerHTML = ''
+
+    if (formasPagamento.length === 0) {
+      if (statusBuscaPagamentoEl)
+        statusBuscaPagamentoEl.textContent = 'Nenhuma forma de pagamento encontrada.'
+      return
+    }
+
+    if (statusBuscaPagamentoEl) statusBuscaPagamentoEl.textContent = ''
+
+    formasPagamento.forEach((forma) => {
+      const item = document.createElement('li')
+      item.textContent = `${forma.nome} - ${forma.descricao}`
+      listaFormasPagamentoEl.appendChild(item)
+    })
+  } catch (erro: unknown) {
+    // Desfecho de recusa: o Main lançou Error porque o termo era inválido.
+    listaFormasPagamentoEl.innerHTML = ''
+    if (statusBuscaPagamentoEl) statusBuscaPagamentoEl.textContent = ''
+    if (erroBuscaPagamentoEl && erro instanceof Error) {
+      erroBuscaPagamentoEl.textContent = erro.message
+    }
+  }
 }
+
+// Busca de verdade: só aqui o IPC é chamado de novo.
+formBuscaPagamentoEl?.addEventListener('submit', async (evento) => {
+  evento.preventDefault()
+  const termo = inputBuscaPagamentoEl?.value ?? ''
+  await carregarFormasPagamento(termo)
+})
+
+// Filtro no cliente: reage a cada tecla digitada, mas só esconde os itens
+// que já estão na tela - nenhuma chamada nova ao IPC acontece aqui.
+inputBuscaPagamentoEl?.addEventListener('input', () => {
+  if (!listaFormasPagamentoEl) return
+
+  const termoDigitado = inputBuscaPagamentoEl.value.trim().toLowerCase()
+  const itens = listaFormasPagamentoEl.querySelectorAll('li')
+
+  itens.forEach((item) => {
+    const texto = item.textContent?.toLowerCase() ?? ''
+    const corresponde = texto.includes(termoDigitado)
+    item.style.display = corresponde ? '' : 'none'
+  })
+})
 
 // ===================== SALDO =====================
 
@@ -196,7 +247,6 @@ async function carregarCategorias() {
     })
   }
 
-  // Atualiza os selects de categoria (transação e filtro)
   ;[selectTransacaoCategoria, selectFiltroCategoria].forEach((select) => {
     if (!select) return
 

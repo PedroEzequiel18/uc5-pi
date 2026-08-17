@@ -14,11 +14,11 @@ function createWindow() {
     minHeight: 600,
     center: true,
     title: "Gestor de Fluxo de Caixa",
-    show: false,
+    show: false, // evita flash de tela branca antes do conteúdo carregar
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
-      contextIsolation: true,
-      nodeIntegration: false,
+      contextIsolation: true, // isola o preload do renderer
+      nodeIntegration: false, // renderer não acessa Node.js diretamente
     },
   });
 
@@ -51,10 +51,7 @@ function criarMenu() {
           },
         },
         { type: "separator" },
-        {
-          label: "Sair",
-          role: "quit",
-        },
+        { label: "Sair", role: "quit" },
       ],
     },
     {
@@ -105,17 +102,44 @@ interface FormaPagamento {
   descricao: string;
 }
 
-ipcMain.handle("listar-formas-pagamento", async (): Promise<FormaPagamento[]> => {
-  const formasPagamento: FormaPagamento[] = [
-    { id: 1, nome: "Dinheiro", descricao: "Pagamento em espécie" },
-    { id: 2, nome: "Pix", descricao: "Transferência instantânea" },
-    { id: 3, nome: "Cartão de Débito", descricao: "Débito direto na conta" },
-    { id: 4, nome: "Cartão de Crédito", descricao: "Pagamento a prazo, fatura mensal" },
-    { id: 5, nome: "Boleto", descricao: "Pagamento via boleto bancário" },
-  ];
+// Dado fixo em memória - o banco entra só no Módulo 6.
+// Sem termo: devolve tudo (carga inicial). Com termo: valida e filtra -
+// os 3 desfechos (recusa/vazio/encontrado) acontecem aqui dentro.
+ipcMain.handle(
+  "listar-formas-pagamento",
+  async (_event, termo?: string): Promise<FormaPagamento[]> => {
+    const formasPagamento: FormaPagamento[] = [
+      { id: 1, nome: "Dinheiro", descricao: "Pagamento em espécie" },
+      { id: 2, nome: "Pix", descricao: "Transferência instantânea" },
+      { id: 3, nome: "Cartão de Débito", descricao: "Débito direto na conta" },
+      { id: 4, nome: "Cartão de Crédito", descricao: "Pagamento a prazo, fatura mensal" },
+      { id: 5, nome: "Boleto", descricao: "Pagamento via boleto bancário" },
+    ];
 
-  return formasPagamento;
-});
+    if (termo === undefined) {
+      return formasPagamento;
+    }
+
+    const termoNormalizado = termo.trim();
+
+    if (termoNormalizado.length === 0) {
+      return formasPagamento;
+    }
+
+    // Desfecho 1: Main recusa o dado inválido.
+    if (/\d/.test(termoNormalizado)) {
+      throw new Error("A busca não pode conter números.");
+    }
+    if (termoNormalizado.length < 2) {
+      throw new Error("Digite ao menos 2 letras para buscar.");
+    }
+
+    // Desfecho 2 (array vazio) ou Desfecho 3 (itens encontrados).
+    return formasPagamento.filter((forma) =>
+      forma.nome.toLowerCase().includes(termoNormalizado.toLowerCase())
+    );
+  }
+);
 
 ipcMain.handle("obter-dados-maquina", async () => {
   const memoriaTotalEmBytes = os.totalmem();
@@ -334,7 +358,7 @@ ipcMain.handle("obter-saldo", async () => {
   `);
 
   const { total_receitas, total_despesas } = resultado.rows[0];
-  const totalReceitas = Number(total_receitas);
+  const totalReceitas = Number(total_receitas); // pg devolve NUMERIC como string
   const totalDespesas = Number(total_despesas);
   const saldo = totalReceitas - totalDespesas;
 
