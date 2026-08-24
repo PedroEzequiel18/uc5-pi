@@ -102,28 +102,28 @@ interface FormaPagamento {
   descricao: string;
 }
 
-// Dado fixo em memória - o banco entra só no Módulo 6.
-// Sem termo: devolve tudo (carga inicial). Com termo: valida e filtra -
-// os 3 desfechos (recusa/vazio/encontrado) acontecem aqui dentro.
+// Antes lia um array fixo; agora consulta a tabela `formas_pagamento` no
+// Neon. O canal continua o mesmo (listar-formas-pagamento) - só o que
+// está dentro do handler mudou. Sem termo: devolve tudo. Com termo:
+// valida e filtra no próprio SQL, com parâmetro ($1), nunca concatenando
+// texto.
 ipcMain.handle(
   "listar-formas-pagamento",
   async (_event, termo?: string): Promise<FormaPagamento[]> => {
-    const formasPagamento: FormaPagamento[] = [
-      { id: 1, nome: "Dinheiro", descricao: "Pagamento em espécie" },
-      { id: 2, nome: "Pix", descricao: "Transferência instantânea" },
-      { id: 3, nome: "Cartão de Débito", descricao: "Débito direto na conta" },
-      { id: 4, nome: "Cartão de Crédito", descricao: "Pagamento a prazo, fatura mensal" },
-      { id: 5, nome: "Boleto", descricao: "Pagamento via boleto bancário" },
-    ];
-
     if (termo === undefined) {
-      return formasPagamento;
+      const resultado = await pool.query(
+        "SELECT id, nome, descricao FROM formas_pagamento ORDER BY nome"
+      );
+      return resultado.rows;
     }
 
     const termoNormalizado = termo.trim();
 
     if (termoNormalizado.length === 0) {
-      return formasPagamento;
+      const resultado = await pool.query(
+        "SELECT id, nome, descricao FROM formas_pagamento ORDER BY nome"
+      );
+      return resultado.rows;
     }
 
     // Desfecho 1: Main recusa o dado inválido.
@@ -134,10 +134,13 @@ ipcMain.handle(
       throw new Error("Digite ao menos 2 letras para buscar.");
     }
 
-    // Desfecho 2 (array vazio) ou Desfecho 3 (itens encontrados).
-    return formasPagamento.filter((forma) =>
-      forma.nome.toLowerCase().includes(termoNormalizado.toLowerCase())
+    // Desfecho 2 (nenhuma linha) ou Desfecho 3 (linhas encontradas) -
+    // decididos pelo próprio resultado da consulta.
+    const resultado = await pool.query(
+      "SELECT id, nome, descricao FROM formas_pagamento WHERE nome ILIKE $1 ORDER BY nome",
+      [`%${termoNormalizado}%`]
     );
+    return resultado.rows;
   }
 );
 
