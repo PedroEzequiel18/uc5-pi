@@ -64,8 +64,6 @@ h3 {
   margin: 0 0 8px;
 }
 
-/* ===== Cabeçalho ===== */
-
 .topo {
   display: flex;
   align-items: flex-end;
@@ -94,8 +92,6 @@ h3 {
   min-height: 1.2em;
   margin: 8px 0 32px;
 }
-
-/* ===== Seção de saldo ===== */
 
 .secao-saldo {
   display: grid;
@@ -143,7 +139,6 @@ h3 {
   color: var(--despesa);
 }
 
-/* Carimbo circular de conferência - elemento de assinatura visual */
 .carimbo {
   width: 176px;
   border: 3px solid var(--tinta);
@@ -189,13 +184,9 @@ h3 {
   margin-top: 2px;
 }
 
-/* ===== Seções genéricas ===== */
-
 .secao {
   margin-bottom: 36px;
 }
-
-/* ===== Chips (formas de pagamento) ===== */
 
 .chips {
   list-style: none;
@@ -216,13 +207,35 @@ h3 {
   box-shadow: var(--sombra);
 }
 
-/* ===== Grade principal: Categorias + Transações ===== */
+.abas {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--papel-linha);
+}
 
-.grade-principal {
-  display: grid;
-  grid-template-columns: 1fr 1.4fr;
-  gap: 20px;
-  align-items: start;
+.aba-botao {
+  background: transparent;
+  border: none;
+  border-bottom: 3px solid transparent;
+  border-radius: 0;
+  color: var(--tinta-suave);
+  padding: 10px 16px;
+  font-weight: 600;
+}
+
+.aba-botao:hover {
+  opacity: 1;
+  color: var(--tinta);
+}
+
+.aba-botao.ativo {
+  color: var(--tinta);
+  border-bottom-color: var(--dourado);
+}
+
+.paineis-abas {
+  display: block;
 }
 
 .cartao-painel {
@@ -232,8 +245,6 @@ h3 {
   padding: 20px;
   box-shadow: var(--sombra);
 }
-
-/* ===== Formulários ===== */
 
 .formulario-compacto {
   display: flex;
@@ -270,8 +281,6 @@ input[type='hidden'] {
   margin-top: 2px;
 }
 
-/* ===== Botões ===== */
-
 button {
   font-family: 'Inter', sans-serif;
   font-size: 0.83rem;
@@ -295,8 +304,6 @@ button:hover {
   color: var(--tinta-suave);
   border-color: var(--borda);
 }
-
-/* ===== Mensagens de status ===== */
 
 .mensagem-status {
   font-size: 0.8rem;
@@ -332,21 +339,6 @@ button:hover {
   width: auto;
 }
 
-/* ===== Filtros recolhíveis ===== */
-
-.filtros-recolhiveis {
-  margin: 16px 0;
-  border-top: 1px solid var(--papel-linha);
-  padding-top: 12px;
-}
-
-.filtros-recolhiveis summary {
-  cursor: pointer;
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: var(--tinta-suave);
-}
-
 .filtros-grade {
   display: flex;
   flex-wrap: wrap;
@@ -359,8 +351,6 @@ button:hover {
   width: auto;
   flex: 1 1 130px;
 }
-
-/* ===== Listas de registro (categorias / transações) ===== */
 
 .lista-registro {
   list-style: none;
@@ -397,13 +387,7 @@ button:hover {
   margin-left: auto;
 }
 
-/* ===== Responsivo ===== */
-
 @media (max-width: 760px) {
-  .grade-principal {
-    grid-template-columns: 1fr;
-  }
-
   .secao-saldo {
     grid-template-columns: 1fr;
   }
@@ -431,7 +415,6 @@ button:hover {
   }
 }
 
-/* Respeita usuários que preferem menos movimento */
 @media (prefers-reduced-motion: reduce) {
   * {
     transition: none !important;

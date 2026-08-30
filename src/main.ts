@@ -1,7 +1,6 @@
 import { app, BrowserWindow, ipcMain, Menu } from "electron";
 import path from "path";
-import os from "os";
-import fs from "fs";
+import Tesseract from "tesseract.js";
 import { pool } from "./db";
 
 let mainWindow: BrowserWindow | null = null;
@@ -14,11 +13,11 @@ function createWindow() {
     minHeight: 600,
     center: true,
     title: "Gestor de Fluxo de Caixa",
-    show: false, // evita flash de tela branca antes do conteúdo carregar
+    show: false,
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
-      contextIsolation: true, // isola o preload do renderer
-      nodeIntegration: false, // renderer não acessa Node.js diretamente
+      contextIsolation: true,
+      nodeIntegration: false,
     },
   });
 
@@ -30,7 +29,6 @@ function createWindow() {
 
   if (urlDoServidorDev) {
     mainWindow.loadURL(urlDoServidorDev);
-
     const conteudoDaJanela = mainWindow.webContents;
     conteudoDaJanela.openDevTools();
   } else {
@@ -64,6 +62,10 @@ function criarMenu() {
         { role: "copy", label: "Copiar" },
         { role: "paste", label: "Colar" },
       ],
+    },
+    {
+      label: "Ver",
+      submenu: [{ role: "toggleDevTools", label: "Alternar DevTools" }],
     },
   ];
 
@@ -102,11 +104,6 @@ interface FormaPagamento {
   descricao: string;
 }
 
-// Antes lia um array fixo; agora consulta a tabela `formas_pagamento` no
-// Neon. O canal continua o mesmo (listar-formas-pagamento) - só o que
-// está dentro do handler mudou. Sem termo: devolve tudo. Com termo:
-// valida e filtra no próprio SQL, com parâmetro ($1), nunca concatenando
-// texto.
 ipcMain.handle(
   "listar-formas-pagamento",
   async (_event, termo?: string): Promise<FormaPagamento[]> => {
@@ -126,7 +123,6 @@ ipcMain.handle(
       return resultado.rows;
     }
 
-    // Desfecho 1: Main recusa o dado inválido.
     if (/\d/.test(termoNormalizado)) {
       throw new Error("A busca não pode conter números.");
     }
@@ -134,8 +130,6 @@ ipcMain.handle(
       throw new Error("Digite ao menos 2 letras para buscar.");
     }
 
-    // Desfecho 2 (nenhuma linha) ou Desfecho 3 (linhas encontradas) -
-    // decididos pelo próprio resultado da consulta.
     const resultado = await pool.query(
       "SELECT id, nome, descricao FROM formas_pagamento WHERE nome ILIKE $1 ORDER BY nome",
       [`%${termoNormalizado}%`]
@@ -144,37 +138,65 @@ ipcMain.handle(
   }
 );
 
-ipcMain.handle("obter-dados-maquina", async () => {
-  const memoriaTotalEmBytes = os.totalmem();
-  const ramTotalGB = (memoriaTotalEmBytes / 1024 ** 3).toFixed(2);
+interface DadosComprovante {
+  textoDetectado: string;
+  valorDetectado: number | null;
+  dataDetectada: string | null;
+}
 
-  const listaProcessadores = os.cpus();
-  const primeiroProcessador = listaProcessadores[0];
-  const nomeProcessador = primeiroProcessador.model;
+function comTimeout<T>(promessa: Promise<T>, ms: number, mensagemErro: string): Promise<T> {
+  return Promise.race([
+    promessa,
+    new Promise<T>((_, rejeitar) =>
+      setTimeout(() => rejeitar(new Error(mensagemErro)), ms)
+    ),
+  ]);
+}
 
-  return {
-    plataforma: os.platform(),
-    processador: nomeProcessador,
-    memoriaRam: `${ramTotalGB} GB`,
-  };
-});
+ipcMain.handle(
+  "ler-comprovante-pix",
+  async (_event, imagemBase64: string): Promise<DadosComprovante> => {
+    console.log("[OCR] Iniciando leitura do comprovante...");
 
-ipcMain.handle("registrar-log", async (_event, textoLog: string) => {
-  if (!textoLog.trim()) return false;
+    const caminhoWorker = require.resolve(
+      "tesseract.js/src/worker-script/node/index.js"
+    );
 
-  const pastaDoApp = app.getAppPath();
-  const caminhoArquivo = path.join(pastaDoApp, "logs.txt");
-  const timestamp = new Date().toISOString();
-  const linhaLog = `[${timestamp}] ${textoLog}\n`;
+    const resultado = await comTimeout(
+      Tesseract.recognize(imagemBase64, "por", {
+        workerPath: caminhoWorker,
+        logger: (info) => {
+          console.log("[OCR]", info.status, info.progress);
+        },
+      }),
+      20000,
+      "Tempo esgotado ao processar o comprovante. Verifique sua conexão com a internet."
+    );
 
-  try {
-    fs.appendFileSync(caminhoArquivo, linhaLog, "utf-8");
-    return true;
-  } catch (erro: unknown) {
-    console.error("Falha de escrita no arquivo:", erro);
-    return false;
+    console.log("[OCR] Leitura concluída.");
+    const textoDetectado = resultado.data.text;
+
+    const padraoValor = /R\$\s*([\d]{1,3}(?:\.\d{3})*,\d{2})/;
+    const encontrouValor = textoDetectado.match(padraoValor);
+
+    let valorDetectado: number | null = null;
+    if (encontrouValor) {
+      const valorTexto = encontrouValor[1].replace(/\./g, "").replace(",", ".");
+      valorDetectado = parseFloat(valorTexto);
+    }
+
+    const padraoData = /(\d{2})\/(\d{2})\/(\d{4})/;
+    const encontrouData = textoDetectado.match(padraoData);
+
+    let dataDetectada: string | null = null;
+    if (encontrouData) {
+      const [, dia, mes, ano] = encontrouData;
+      dataDetectada = `${ano}-${mes}-${dia}`;
+    }
+
+    return { textoDetectado, valorDetectado, dataDetectada };
   }
-});
+);
 
 // ===================== CATEGORIAS =====================
 
@@ -220,10 +242,25 @@ ipcMain.handle(
 );
 
 ipcMain.handle("deletar-categoria", async (_event, id: number) => {
-  const resultado = await pool.query("DELETE FROM categorias WHERE id = $1", [
-    id,
-  ]);
-  return (resultado.rowCount ?? 0) > 0;
+  try {
+    const resultado = await pool.query(
+      "DELETE FROM categorias WHERE id = $1",
+      [id]
+    );
+    return (resultado.rowCount ?? 0) > 0;
+  } catch (erro: unknown) {
+    if (
+      erro &&
+      typeof erro === "object" &&
+      "code" in erro &&
+      (erro as { code: string }).code === "23503"
+    ) {
+      throw new Error(
+        "Não é possível excluir uma categoria com transações vinculadas."
+      );
+    }
+    throw erro;
+  }
 });
 
 // ===================== TRANSAÇÕES =====================
@@ -264,6 +301,9 @@ ipcMain.handle(
     const clausulaWhere =
       condicoes.length > 0 ? `WHERE ${condicoes.join(" AND ")}` : "";
 
+    // LEFT JOIN em formas_pagamento porque uma transação pode existir
+    // sem forma de pagamento definida ainda (id_forma_pagamento é opcional).
+    // Se fosse JOIN comum, essas transações sumiriam da lista sem erro.
     const consulta = `
       SELECT
         t.id,
@@ -272,9 +312,12 @@ ipcMain.handle(
         t.data,
         t.id_categoria,
         c.nome AS categoria_nome,
-        c.tipo AS categoria_tipo
+        c.tipo AS categoria_tipo,
+        t.id_forma_pagamento,
+        fp.nome AS forma_pagamento_nome
       FROM transacoes t
       JOIN categorias c ON c.id = t.id_categoria
+      LEFT JOIN formas_pagamento fp ON fp.id = t.id_forma_pagamento
       ${clausulaWhere}
       ORDER BY t.data DESC, t.id DESC
     `;
@@ -291,7 +334,8 @@ ipcMain.handle(
     descricao: string,
     valor: number,
     data: string,
-    idCategoria: number
+    idCategoria: number,
+    idFormaPagamento: number | null
   ) => {
     if (!descricao.trim()) {
       throw new Error("A descrição é obrigatória.");
@@ -307,10 +351,10 @@ ipcMain.handle(
     }
 
     const resultado = await pool.query(
-      `INSERT INTO transacoes (descricao, valor, data, id_categoria)
-       VALUES ($1, $2, $3, $4)
-       RETURNING id, descricao, valor, data, id_categoria`,
-      [descricao, valor, data, idCategoria]
+      `INSERT INTO transacoes (descricao, valor, data, id_categoria, id_forma_pagamento)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING id, descricao, valor, data, id_categoria, id_forma_pagamento`,
+      [descricao, valor, data, idCategoria, idFormaPagamento]
     );
     return resultado.rows[0];
   }
@@ -324,14 +368,15 @@ ipcMain.handle(
     descricao: string,
     valor: number,
     data: string,
-    idCategoria: number
+    idCategoria: number,
+    idFormaPagamento: number | null
   ) => {
     const resultado = await pool.query(
       `UPDATE transacoes
-       SET descricao = $1, valor = $2, data = $3, id_categoria = $4
-       WHERE id = $5
-       RETURNING id, descricao, valor, data, id_categoria`,
-      [descricao, valor, data, idCategoria, id]
+       SET descricao = $1, valor = $2, data = $3, id_categoria = $4, id_forma_pagamento = $5
+       WHERE id = $6
+       RETURNING id, descricao, valor, data, id_categoria, id_forma_pagamento`,
+      [descricao, valor, data, idCategoria, idFormaPagamento, id]
     );
 
     if (resultado.rowCount === 0) {
@@ -361,7 +406,7 @@ ipcMain.handle("obter-saldo", async () => {
   `);
 
   const { total_receitas, total_despesas } = resultado.rows[0];
-  const totalReceitas = Number(total_receitas); // pg devolve NUMERIC como string
+  const totalReceitas = Number(total_receitas);
   const totalDespesas = Number(total_despesas);
   const saldo = totalReceitas - totalDespesas;
 

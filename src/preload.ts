@@ -1,13 +1,11 @@
 import { contextBridge, ipcRenderer } from 'electron'
 
-// Expõe só o necessário pro renderer, mantendo contextIsolation seguro.
 contextBridge.exposeInMainWorld('api', {
   ping: () => ipcRenderer.invoke('canal-ping'),
-  obterDadosMaquina: () => ipcRenderer.invoke('obter-dados-maquina'),
-  escreverLog: (mensagem: string) => ipcRenderer.invoke('registrar-log', mensagem),
   listarFormasPagamento: (termo?: string) => ipcRenderer.invoke('listar-formas-pagamento', termo),
+  lerComprovantePix: (imagemBase64: string) =>
+    ipcRenderer.invoke('ler-comprovante-pix', imagemBase64),
 
-  // Categorias
   listarCategorias: () => ipcRenderer.invoke('listar-categorias'),
   criarCategoria: (nome: string, tipo: 'receita' | 'despesa') =>
     ipcRenderer.invoke('criar-categoria', nome, tipo),
@@ -15,7 +13,6 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.invoke('atualizar-categoria', id, nome, tipo),
   deletarCategoria: (id: number) => ipcRenderer.invoke('deletar-categoria', id),
 
-  // Transações
   listarTransacoes: (filtros?: {
     tipo?: 'receita' | 'despesa'
     idCategoria?: number
@@ -26,14 +23,24 @@ contextBridge.exposeInMainWorld('api', {
     descricao: string,
     valor: number,
     data: string,
-    idCategoria: number
-  ) => ipcRenderer.invoke('criar-transacao', descricao, valor, data, idCategoria),
+    idCategoria: number,
+    idFormaPagamento: number | null
+  ) =>
+    ipcRenderer.invoke(
+      'criar-transacao',
+      descricao,
+      valor,
+      data,
+      idCategoria,
+      idFormaPagamento
+    ),
   atualizarTransacao: (
     id: number,
     descricao: string,
     valor: number,
     data: string,
-    idCategoria: number
+    idCategoria: number,
+    idFormaPagamento: number | null
   ) =>
     ipcRenderer.invoke(
       'atualizar-transacao',
@@ -41,10 +48,10 @@ contextBridge.exposeInMainWorld('api', {
       descricao,
       valor,
       data,
-      idCategoria
+      idCategoria,
+      idFormaPagamento
     ),
   deletarTransacao: (id: number) => ipcRenderer.invoke('deletar-transacao', id),
 
-  // Saldo
   obterSaldo: () => ipcRenderer.invoke('obter-saldo'),
 })

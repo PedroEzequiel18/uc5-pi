@@ -1,17 +1,15 @@
 export {}
 
-// Avisa o TypeScript que window.api existe (criado pelo preload).
 declare global {
   interface Window {
     api: {
       ping: () => Promise<string>
-      obterDadosMaquina: () => Promise<{
-        plataforma: string
-        processador: string
-        memoriaRam: string
-      }>
-      escreverLog: (mensagem: string) => Promise<boolean>
       listarFormasPagamento: (termo?: string) => Promise<FormaPagamento[]>
+      lerComprovantePix: (imagemBase64: string) => Promise<{
+        textoDetectado: string
+        valorDetectado: number | null
+        dataDetectada: string | null
+      }>
 
       listarCategorias: () => Promise<Categoria[]>
       criarCategoria: (
@@ -35,14 +33,16 @@ declare global {
         descricao: string,
         valor: number,
         data: string,
-        idCategoria: number
+        idCategoria: number,
+        idFormaPagamento: number | null
       ) => Promise<Transacao>
       atualizarTransacao: (
         id: number,
         descricao: string,
         valor: number,
         data: string,
-        idCategoria: number
+        idCategoria: number,
+        idFormaPagamento: number | null
       ) => Promise<Transacao>
       deletarTransacao: (id: number) => Promise<boolean>
 
@@ -70,11 +70,13 @@ interface FormaPagamento {
 interface Transacao {
   id: number
   descricao: string
-  valor: string // pg devolve NUMERIC como string
+  valor: string
   data: string
   id_categoria: number
   categoria_nome: string
   categoria_tipo: 'receita' | 'despesa'
+  id_forma_pagamento: number | null
+  forma_pagamento_nome: string | null
 }
 
 function formatarMoeda(valor: number): string {
@@ -94,6 +96,25 @@ botaoPing?.addEventListener('click', async () => {
   if (respostaPing) respostaPing.textContent = resposta
 })
 
+// ===================== NAVEGAÇÃO EM ABAS =====================
+
+const botoesAba = document.querySelectorAll<HTMLButtonElement>('.aba-botao')
+const paineisAba = document.querySelectorAll<HTMLElement>('.aba-painel')
+
+botoesAba.forEach((botao) => {
+  botao.addEventListener('click', () => {
+    const abaAlvo = botao.dataset.aba
+
+    botoesAba.forEach((outroBotao) => {
+      outroBotao.classList.toggle('ativo', outroBotao === botao)
+    })
+
+    paineisAba.forEach((painel) => {
+      painel.hidden = painel.dataset.abaPainel !== abaAlvo
+    })
+  })
+})
+
 // ===================== FORMAS DE PAGAMENTO =====================
 
 const listaFormasPagamentoEl = document.getElementById('lista-formas-pagamento')
@@ -106,8 +127,10 @@ const inputBuscaPagamentoEl = document.getElementById(
 const erroBuscaPagamentoEl = document.getElementById('erro-busca-pagamento')
 const statusBuscaPagamentoEl = document.getElementById('status-busca-pagamento')
 
-// Chama o Main (mesmo canal listar-formas-pagamento) e trata os 3 desfechos:
-// recusa (erro), vazio (nenhum resultado) ou lista encontrada.
+const selectTransacaoFormaPagamento = document.getElementById(
+  'transacao-forma-pagamento'
+) as HTMLSelectElement | null
+
 async function carregarFormasPagamento(termo?: string) {
   if (!listaFormasPagamentoEl) return
 
@@ -131,7 +154,6 @@ async function carregarFormasPagamento(termo?: string) {
       listaFormasPagamentoEl.appendChild(item)
     })
   } catch (erro: unknown) {
-    // Desfecho de recusa: o Main lançou Error porque o termo era inválido.
     listaFormasPagamentoEl.innerHTML = ''
     if (statusBuscaPagamentoEl) statusBuscaPagamentoEl.textContent = ''
     if (erroBuscaPagamentoEl && erro instanceof Error) {
@@ -140,15 +162,32 @@ async function carregarFormasPagamento(termo?: string) {
   }
 }
 
-// Busca de verdade: só aqui o IPC é chamado de novo.
+async function carregarSelectFormasPagamento() {
+  if (!selectTransacaoFormaPagamento) return
+
+  const formasPagamento = await window.api.listarFormasPagamento()
+
+  const valorAtual = selectTransacaoFormaPagamento.value
+  const primeiraOpcao = selectTransacaoFormaPagamento.options[0]
+  selectTransacaoFormaPagamento.innerHTML = ''
+  selectTransacaoFormaPagamento.appendChild(primeiraOpcao)
+
+  formasPagamento.forEach((forma) => {
+    const opcao = document.createElement('option')
+    opcao.value = String(forma.id)
+    opcao.textContent = forma.nome
+    selectTransacaoFormaPagamento.appendChild(opcao)
+  })
+
+  selectTransacaoFormaPagamento.value = valorAtual
+}
+
 formBuscaPagamentoEl?.addEventListener('submit', async (evento) => {
   evento.preventDefault()
   const termo = inputBuscaPagamentoEl?.value ?? ''
   await carregarFormasPagamento(termo)
 })
 
-// Filtro no cliente: reage a cada tecla digitada, mas só esconde os itens
-// que já estão na tela - nenhuma chamada nova ao IPC acontece aqui.
 inputBuscaPagamentoEl?.addEventListener('input', () => {
   if (!listaFormasPagamentoEl) return
 
@@ -236,9 +275,16 @@ async function carregarCategorias() {
       const botaoExcluir = document.createElement('button')
       botaoExcluir.textContent = 'Excluir'
       botaoExcluir.addEventListener('click', async () => {
-        await window.api.deletarCategoria(categoria.id)
-        await carregarCategorias()
-        await carregarTransacoes()
+        try {
+          await window.api.deletarCategoria(categoria.id)
+          if (msgCategoriaEl) msgCategoriaEl.textContent = 'Categoria excluída!'
+          await carregarCategorias()
+          await carregarTransacoes()
+        } catch (erro: unknown) {
+          if (msgCategoriaEl && erro instanceof Error) {
+            msgCategoriaEl.textContent = `Erro: ${erro.message}`
+          }
+        }
       })
 
       item.appendChild(botaoEditar)
@@ -316,6 +362,57 @@ const botaoCancelarTransacao = document.getElementById(
   'btn-cancelar-transacao'
 )
 
+// ===================== LEITOR DE COMPROVANTE PIX =====================
+
+const inputComprovanteEl = document.getElementById(
+  'input-comprovante-pix'
+) as HTMLInputElement | null
+const statusComprovanteEl = document.getElementById('status-comprovante-pix')
+
+function lerArquivoComoBase64(arquivo: File): Promise<string> {
+  return new Promise((resolve, rejeitar) => {
+    const leitor = new FileReader()
+    leitor.onload = () => resolve(leitor.result as string)
+    leitor.onerror = () => rejeitar(leitor.error)
+    leitor.readAsDataURL(arquivo)
+  })
+}
+
+inputComprovanteEl?.addEventListener('change', async () => {
+  const arquivo = inputComprovanteEl.files?.[0]
+  if (!arquivo) return
+
+  if (statusComprovanteEl)
+    statusComprovanteEl.textContent = 'Lendo comprovante, aguarde...'
+
+  try {
+    const imagemBase64 = await lerArquivoComoBase64(arquivo)
+    const { valorDetectado, dataDetectada } =
+      await window.api.lerComprovantePix(imagemBase64)
+
+    if (transacaoValorInput && valorDetectado !== null) {
+      transacaoValorInput.value = String(valorDetectado)
+    }
+    if (transacaoDataInput && dataDetectada !== null) {
+      transacaoDataInput.value = dataDetectada
+    }
+
+    if (valorDetectado === null && dataDetectada === null) {
+      if (statusComprovanteEl)
+        statusComprovanteEl.textContent =
+          'Não consegui identificar valor ou data - preencha manualmente.'
+    } else {
+      if (statusComprovanteEl)
+        statusComprovanteEl.textContent =
+          'Comprovante lido! Confira os dados antes de salvar.'
+    }
+  } catch (erro: unknown) {
+    if (statusComprovanteEl && erro instanceof Error) {
+      statusComprovanteEl.textContent = `Erro ao ler comprovante: ${erro.message}`
+    }
+  }
+})
+
 const filtroTipoSelect = document.getElementById(
   'filtro-tipo'
 ) as HTMLSelectElement | null
@@ -334,6 +431,7 @@ function limparFormularioTransacao() {
   if (transacaoValorInput) transacaoValorInput.value = ''
   if (transacaoDataInput) transacaoDataInput.value = ''
   if (selectTransacaoCategoria) selectTransacaoCategoria.value = ''
+  if (selectTransacaoFormaPagamento) selectTransacaoFormaPagamento.value = ''
 }
 
 async function carregarTransacoes() {
@@ -361,8 +459,11 @@ async function carregarTransacoes() {
     const dataFormatada = new Date(transacao.data).toLocaleDateString(
       'pt-BR'
     )
+    const sufixoFormaPagamento = transacao.forma_pagamento_nome
+      ? ` · ${transacao.forma_pagamento_nome}`
+      : ''
 
-    item.textContent = `${dataFormatada} - ${transacao.descricao} - ${valorFormatado} (${transacao.categoria_nome}) `
+    item.textContent = `${dataFormatada} - ${transacao.descricao} - ${valorFormatado} (${transacao.categoria_nome}${sufixoFormaPagamento}) `
 
     const botaoEditar = document.createElement('button')
     botaoEditar.textContent = 'Editar'
@@ -376,6 +477,10 @@ async function carregarTransacoes() {
         transacaoDataInput.value = transacao.data.slice(0, 10)
       if (selectTransacaoCategoria)
         selectTransacaoCategoria.value = String(transacao.id_categoria)
+      if (selectTransacaoFormaPagamento)
+        selectTransacaoFormaPagamento.value = transacao.id_forma_pagamento
+          ? String(transacao.id_forma_pagamento)
+          : ''
     })
 
     const botaoExcluir = document.createElement('button')
@@ -400,6 +505,9 @@ formTransacao?.addEventListener('submit', async (evento) => {
   const valor = Number(transacaoValorInput?.value)
   const data = transacaoDataInput?.value ?? ''
   const idCategoria = Number(selectTransacaoCategoria?.value)
+  const idFormaPagamento = selectTransacaoFormaPagamento?.value
+    ? Number(selectTransacaoFormaPagamento.value)
+    : null
 
   try {
     if (id) {
@@ -408,11 +516,18 @@ formTransacao?.addEventListener('submit', async (evento) => {
         descricao,
         valor,
         data,
-        idCategoria
+        idCategoria,
+        idFormaPagamento
       )
       if (msgTransacaoEl) msgTransacaoEl.textContent = 'Transação atualizada!'
     } else {
-      await window.api.criarTransacao(descricao, valor, data, idCategoria)
+      await window.api.criarTransacao(
+        descricao,
+        valor,
+        data,
+        idCategoria,
+        idFormaPagamento
+      )
       if (msgTransacaoEl) msgTransacaoEl.textContent = 'Transação criada!'
     }
 
@@ -445,6 +560,7 @@ async function iniciar() {
   await carregarTransacoes()
   await atualizarSaldo()
   await carregarFormasPagamento()
+  await carregarSelectFormasPagamento()
 }
 
 iniciar()

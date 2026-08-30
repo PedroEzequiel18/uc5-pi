@@ -26,7 +26,6 @@
       </header>
       <p id="resposta" class="topo-resposta"></p>
 
-      <!-- ===== Saldo: cartões + carimbo ===== -->
       <section class="secao-saldo">
         <div class="cartoes-saldo">
           <div class="cartao-stat cartao-stat--receita">
@@ -46,7 +45,6 @@
         </div>
       </section>
 
-      <!-- ===== Formas de pagamento ===== -->
       <section class="secao">
         <h2>Formas de pagamento aceitas</h2>
 
@@ -67,9 +65,14 @@
         <ul id="lista-formas-pagamento" class="chips"></ul>
       </section>
 
-      <!-- ===== Categorias e Transações lado a lado ===== -->
-      <div class="grade-principal">
-        <section class="cartao-painel">
+      <nav class="abas" id="nav-abas">
+        <button type="button" class="aba-botao ativo" data-aba="categorias">Categorias</button>
+        <button type="button" class="aba-botao" data-aba="transacoes">Transações</button>
+        <button type="button" class="aba-botao" data-aba="filtros">Filtros</button>
+      </nav>
+
+      <div class="paineis-abas">
+        <section class="cartao-painel aba-painel" data-aba-painel="categorias">
           <h2>Categorias</h2>
           <form id="form-categoria" class="formulario-compacto">
             <input type="hidden" id="categoria-id" value="" />
@@ -88,8 +91,15 @@
           <ul id="lista-categorias" class="lista-registro"></ul>
         </section>
 
-        <section class="cartao-painel">
+        <section class="cartao-painel aba-painel" data-aba-painel="transacoes" hidden>
           <h2>Transações</h2>
+
+          <div class="leitor-comprovante">
+            <label for="input-comprovante-pix">Ler comprovante Pix (imagem)</label>
+            <input type="file" id="input-comprovante-pix" accept="image/*" />
+            <p id="status-comprovante-pix" class="mensagem-status"></p>
+          </div>
+
           <form id="form-transacao" class="formulario-compacto">
             <input type="hidden" id="transacao-id" value="" />
             <input type="text" id="transacao-descricao" placeholder="Descrição" required />
@@ -98,6 +108,9 @@
             <select id="transacao-categoria" required>
               <option value="">Categoria</option>
             </select>
+            <select id="transacao-forma-pagamento">
+              <option value="">Forma de pagamento (opcional)</option>
+            </select>
             <div class="formulario-acoes">
               <button type="submit" id="btn-salvar-transacao">Salvar</button>
               <button type="button" id="btn-cancelar-transacao" class="botao-fantasma">Cancelar</button>
@@ -105,27 +118,28 @@
           </form>
           <p id="msg-transacao" class="mensagem-status"></p>
 
-          <details class="filtros-recolhiveis">
-            <summary>Filtros</summary>
-            <div class="filtros-grade">
-              <select id="filtro-tipo">
-                <option value="">Todos os tipos</option>
-                <option value="receita">Receita</option>
-                <option value="despesa">Despesa</option>
-              </select>
-              <select id="filtro-categoria">
-                <option value="">Todas as categorias</option>
-              </select>
-              <input type="date" id="filtro-data-inicio" />
-              <input type="date" id="filtro-data-fim" />
-              <div class="formulario-acoes">
-                <button id="btn-filtrar">Filtrar</button>
-                <button id="btn-limpar-filtro" class="botao-fantasma">Limpar</button>
-              </div>
-            </div>
-          </details>
-
           <ul id="lista-transacoes" class="lista-registro"></ul>
+        </section>
+
+        <section class="cartao-painel aba-painel" data-aba-painel="filtros" hidden>
+          <h2>Filtros de transações</h2>
+          <div class="filtros-grade">
+            <select id="filtro-tipo">
+              <option value="">Todos os tipos</option>
+              <option value="receita">Receita</option>
+              <option value="despesa">Despesa</option>
+            </select>
+            <select id="filtro-categoria">
+              <option value="">Todas as categorias</option>
+            </select>
+            <input type="date" id="filtro-data-inicio" />
+            <input type="date" id="filtro-data-fim" />
+            <div class="formulario-acoes">
+              <button id="btn-filtrar">Filtrar</button>
+              <button id="btn-limpar-filtro" class="botao-fantasma">Limpar</button>
+            </div>
+          </div>
+          <p class="mensagem-status">O resultado do filtro aparece na aba Transações.</p>
         </section>
       </div>
     </div>
