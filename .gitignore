@@ -1,6 +1,10 @@
 node_modules/
 dist/
 dist-electron/
+release/
+
 .env
+.env.local
+
 logs.txt
 *.log

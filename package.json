@@ -1,8 +1,9 @@
 {
-  "name": "uc5-desktop-mod1-ipc",
+  "name": "gestor-fluxo-caixa",
   "version": "1.0.0",
   "main": "dist-electron/main.js",
-  "description": "Projeto de referência: exercícios IPC com Electron + Vite + TypeScript",
+  "description": "Gestor de Fluxo de Caixa - Projeto Integrador UC5 (Electron + Vite + TypeScript)",
+  "author": "Pedro Ezequiel Pontes da Silva",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build && electron-builder",
@@ -24,8 +25,21 @@
     "vite-plugin-electron-renderer": "^1.0.0"
   },
   "build": {
-    "appId": "io.github.thalsime.uc5desktop",
-    "productName": "UC5Desktop",
+    "appId": "br.com.pedro.gestorfluxocaixa",
+    "productName": "Gestor de Fluxo de Caixa",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "**/*",
+      "!**/.env*"
+    ],
+    "extraResources": [
+      {
+        "from": ".env",
+        "to": ".env"
+      }
+    ],
     "win": {
       "target": "nsis",
       "requestedExecutionLevel": "asInvoker"

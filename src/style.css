@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap");
 
 :root {
   --papel: #f5f1e6;
@@ -25,7 +25,7 @@ body {
   padding: 0;
   background: var(--papel);
   color: var(--tinta);
-  font-family: 'Inter', system-ui, sans-serif;
+  font-family: "Inter", system-ui, sans-serif;
   line-height: 1.5;
 }
 
@@ -37,7 +37,7 @@ body {
 
 h1,
 h2 {
-  font-family: 'Fraunces', serif;
+  font-family: "Fraunces", serif;
   color: var(--tinta);
 }
 
@@ -55,7 +55,7 @@ h2 {
 }
 
 h3 {
-  font-family: 'Inter', sans-serif;
+  font-family: "Inter", sans-serif;
   font-weight: 600;
   font-size: 0.78rem;
   text-transform: uppercase;
@@ -86,7 +86,7 @@ h3 {
 }
 
 .topo-resposta {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: "IBM Plex Mono", monospace;
   font-size: 0.78rem;
   color: var(--tinta-suave);
   min-height: 1.2em;
@@ -124,7 +124,7 @@ h3 {
 }
 
 .cartao-stat-valor {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: "IBM Plex Mono", monospace;
   font-size: 1.4rem;
   font-weight: 600;
 }
@@ -156,7 +156,7 @@ h3 {
 }
 
 .carimbo::before {
-  content: '';
+  content: "";
   position: absolute;
   inset: 8px;
   border: 1px dashed var(--dourado);
@@ -172,7 +172,7 @@ h3 {
 }
 
 .carimbo-valor {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: "IBM Plex Mono", monospace;
   font-weight: 600;
   font-size: 1.05rem;
   text-align: center;
@@ -254,7 +254,7 @@ h3 {
 
 input,
 select {
-  font-family: 'Inter', sans-serif;
+  font-family: "Inter", sans-serif;
   font-size: 0.88rem;
   padding: 9px 11px;
   border: 1px solid var(--borda);
@@ -271,7 +271,7 @@ button:focus-visible {
   outline-offset: 1px;
 }
 
-input[type='hidden'] {
+input[type="hidden"] {
   display: none;
 }
 
@@ -282,7 +282,7 @@ input[type='hidden'] {
 }
 
 button {
-  font-family: 'Inter', sans-serif;
+  font-family: "Inter", sans-serif;
   font-size: 0.83rem;
   font-weight: 600;
   padding: 9px 16px;
@@ -368,13 +368,13 @@ button:hover {
   border-radius: 8px;
   background: var(--papel);
   border-left: 3px solid var(--borda);
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: "IBM Plex Mono", monospace;
   font-size: 0.82rem;
   color: var(--tinta);
 }
 
 .lista-registro li button {
-  font-family: 'Inter', sans-serif;
+  font-family: "Inter", sans-serif;
   font-size: 0.7rem;
   padding: 5px 10px;
   border-radius: 5px;

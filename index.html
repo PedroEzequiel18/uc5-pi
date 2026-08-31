@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="pt-BR">
   <head>
     <meta charset="UTF-8" />
@@ -26,6 +26,27 @@
       </header>
       <p id="resposta" class="topo-resposta"></p>
 
+      <!-- ===== Dados da máquina e log: não dependem de banco ===== -->
+      <section class="secao">
+        <h2>Diagnóstico local (sem banco de dados)</h2>
+        <button id="btn-dados-maquina" class="botao-fantasma">
+          Consultar hardware
+        </button>
+        <p id="resultado-dados-maquina" class="mensagem-status"></p>
+
+        <form id="form-log" class="formulario-busca">
+          <label for="texto-log">Registrar log em arquivo</label>
+          <input
+            type="text"
+            id="texto-log"
+            placeholder="Ex: app iniciado"
+            autocomplete="off"
+          />
+          <button type="submit">Salvar log</button>
+        </form>
+        <p id="status-log" class="mensagem-status"></p>
+      </section>
+
       <section class="secao-saldo">
         <div class="cartoes-saldo">
           <div class="cartao-stat cartao-stat--receita">
@@ -41,7 +62,9 @@
         <div class="carimbo" id="carimbo-saldo">
           <span class="carimbo-rotulo">Saldo apurado</span>
           <span class="carimbo-valor" id="saldo-total">R$ 0,00</span>
-          <button id="btn-atualizar-saldo" class="carimbo-botao">Recalcular</button>
+          <button id="btn-atualizar-saldo" class="carimbo-botao">
+            Recalcular
+          </button>
         </div>
       </section>
 
@@ -66,9 +89,15 @@
       </section>
 
       <nav class="abas" id="nav-abas">
-        <button type="button" class="aba-botao ativo" data-aba="categorias">Categorias</button>
-        <button type="button" class="aba-botao" data-aba="transacoes">Transações</button>
-        <button type="button" class="aba-botao" data-aba="filtros">Filtros</button>
+        <button type="button" class="aba-botao ativo" data-aba="categorias">
+          Categorias
+        </button>
+        <button type="button" class="aba-botao" data-aba="transacoes">
+          Transações
+        </button>
+        <button type="button" class="aba-botao" data-aba="filtros">
+          Filtros
+        </button>
       </nav>
 
       <div class="paineis-abas">
@@ -76,7 +105,12 @@
           <h2>Categorias</h2>
           <form id="form-categoria" class="formulario-compacto">
             <input type="hidden" id="categoria-id" value="" />
-            <input type="text" id="categoria-nome" placeholder="Nome da categoria" required />
+            <input
+              type="text"
+              id="categoria-nome"
+              placeholder="Nome da categoria"
+              required
+            />
             <select id="categoria-tipo" required>
               <option value="">Tipo</option>
               <option value="receita">Receita</option>
@@ -84,26 +118,49 @@
             </select>
             <div class="formulario-acoes">
               <button type="submit" id="btn-salvar-categoria">Salvar</button>
-              <button type="button" id="btn-cancelar-categoria" class="botao-fantasma">Cancelar</button>
+              <button
+                type="button"
+                id="btn-cancelar-categoria"
+                class="botao-fantasma"
+              >
+                Cancelar
+              </button>
             </div>
           </form>
           <p id="msg-categoria" class="mensagem-status"></p>
           <ul id="lista-categorias" class="lista-registro"></ul>
         </section>
 
-        <section class="cartao-painel aba-painel" data-aba-painel="transacoes" hidden>
+        <section
+          class="cartao-painel aba-painel"
+          data-aba-painel="transacoes"
+          hidden
+        >
           <h2>Transações</h2>
 
           <div class="leitor-comprovante">
-            <label for="input-comprovante-pix">Ler comprovante Pix (imagem)</label>
+            <label for="input-comprovante-pix"
+              >Ler comprovante Pix (imagem)</label
+            >
             <input type="file" id="input-comprovante-pix" accept="image/*" />
             <p id="status-comprovante-pix" class="mensagem-status"></p>
           </div>
 
           <form id="form-transacao" class="formulario-compacto">
             <input type="hidden" id="transacao-id" value="" />
-            <input type="text" id="transacao-descricao" placeholder="Descrição" required />
-            <input type="number" step="0.01" id="transacao-valor" placeholder="Valor (R$)" required />
+            <input
+              type="text"
+              id="transacao-descricao"
+              placeholder="Descrição"
+              required
+            />
+            <input
+              type="number"
+              step="0.01"
+              id="transacao-valor"
+              placeholder="Valor (R$)"
+              required
+            />
             <input type="date" id="transacao-data" required />
             <select id="transacao-categoria" required>
               <option value="">Categoria</option>
@@ -113,7 +170,13 @@
             </select>
             <div class="formulario-acoes">
               <button type="submit" id="btn-salvar-transacao">Salvar</button>
-              <button type="button" id="btn-cancelar-transacao" class="botao-fantasma">Cancelar</button>
+              <button
+                type="button"
+                id="btn-cancelar-transacao"
+                class="botao-fantasma"
+              >
+                Cancelar
+              </button>
             </div>
           </form>
           <p id="msg-transacao" class="mensagem-status"></p>
@@ -121,7 +184,11 @@
           <ul id="lista-transacoes" class="lista-registro"></ul>
         </section>
 
-        <section class="cartao-painel aba-painel" data-aba-painel="filtros" hidden>
+        <section
+          class="cartao-painel aba-painel"
+          data-aba-painel="filtros"
+          hidden
+        >
           <h2>Filtros de transações</h2>
           <div class="filtros-grade">
             <select id="filtro-tipo">
@@ -136,10 +203,14 @@
             <input type="date" id="filtro-data-fim" />
             <div class="formulario-acoes">
               <button id="btn-filtrar">Filtrar</button>
-              <button id="btn-limpar-filtro" class="botao-fantasma">Limpar</button>
+              <button id="btn-limpar-filtro" class="botao-fantasma">
+                Limpar
+              </button>
             </div>
           </div>
-          <p class="mensagem-status">O resultado do filtro aparece na aba Transações.</p>
+          <p class="mensagem-status">
+            O resultado do filtro aparece na aba Transações.
+          </p>
         </section>
       </div>
     </div>
