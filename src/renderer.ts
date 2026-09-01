@@ -452,6 +452,15 @@ inputComprovanteEl?.addEventListener("change", async () => {
     if (transacaoDataInput && dataDetectada !== null) {
       transacaoDataInput.value = dataDetectada;
     }
+    if (selectTransacaoFormaPagamento) {
+      const opcaoPix = Array.from(selectTransacaoFormaPagamento.options).find(
+        (opcao) => opcao.textContent?.toLowerCase() === "pix",
+      );
+
+      if (opcaoPix) {
+        selectTransacaoFormaPagamento.value = opcaoPix.value;
+      }
+    }
 
     if (valorDetectado === null && dataDetectada === null) {
       if (statusComprovanteEl)
