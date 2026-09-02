@@ -232,24 +232,24 @@ formBuscaPagamentoEl?.addEventListener("submit", async (evento) => {
   await carregarFormasPagamento(termo);
 });
 
-inputBuscaPagamentoEl?.addEventListener('input', async () => {
-  const termo = inputBuscaPagamentoEl.value.trim()
+inputBuscaPagamentoEl?.addEventListener("input", async () => {
+  const termo = inputBuscaPagamentoEl.value.trim();
 
   if (termo.length === 0) {
-    await carregarFormasPagamento()
-    return
+    await carregarFormasPagamento();
+    return;
   }
 
   if (termo.length < 2) {
-    return
+    return;
   }
 
   try {
-    await carregarFormasPagamento(termo)
+    await carregarFormasPagamento(termo);
   } catch (erro) {
-    console.error(erro)
+    console.error(erro);
   }
-})
+});
 
 // ===================== SALDO =====================
 
@@ -257,6 +257,15 @@ const botaoAtualizarSaldo = document.getElementById("btn-atualizar-saldo");
 const saldoReceitasEl = document.getElementById("saldo-receitas");
 const saldoDespesasEl = document.getElementById("saldo-despesas");
 const saldoTotalEl = document.getElementById("saldo-total");
+const resumoReceitasMesEl = document.getElementById("resumo-receitas-mes");
+
+const resumoDespesasMesEl = document.getElementById("resumo-despesas-mes");
+
+const resumoTotalMesEl = document.getElementById("resumo-total-mes");
+
+const resumoQuantidadeTransacoesEl = document.getElementById(
+  "resumo-quantidade-transacoes",
+);
 
 async function atualizarSaldo() {
   const { totalReceitas, totalDespesas, saldo } = await window.api.obterSaldo();
@@ -271,6 +280,19 @@ async function atualizarSaldo() {
 
   if (saldoTotalEl) {
     saldoTotalEl.textContent = `Saldo: ${formatarMoeda(saldo)}`;
+    const totalMovimentado = totalReceitas + totalDespesas;
+
+    if (resumoReceitasMesEl) {
+      resumoReceitasMesEl.textContent = `Receitas do mês: ${formatarMoeda(totalReceitas)}`;
+    }
+
+    if (resumoDespesasMesEl) {
+      resumoDespesasMesEl.textContent = `Despesas do mês: ${formatarMoeda(totalDespesas)}`;
+    }
+
+    if (resumoTotalMesEl) {
+      resumoTotalMesEl.textContent = `Total movimentado: ${formatarMoeda(totalMovimentado)}`;
+    }
   }
 }
 
@@ -519,6 +541,9 @@ async function carregarTransacoes() {
   };
 
   const transacoes = await window.api.listarTransacoes(filtros);
+  if (resumoQuantidadeTransacoesEl) {
+    resumoQuantidadeTransacoesEl.textContent = `Transações registradas: ${transacoes.length}`;
+  }
 
   if (!listaTransacoesEl) return;
 
