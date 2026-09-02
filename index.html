@@ -22,31 +22,9 @@
           <span class="topo-eyebrow">Controle Financeiro</span>
           <h1>Gestor de Fluxo de Caixa</h1>
         </div>
-        <button id="btn-ping" class="botao-fantasma">Testar conexão</button>
+      
       </header>
-      <p id="resposta" class="topo-resposta"></p>
-
-      <!-- ===== Dados da máquina e log: não dependem de banco ===== -->
-      <section class="secao">
-        <h2>Diagnóstico local (sem banco de dados)</h2>
-        <button id="btn-dados-maquina" class="botao-fantasma">
-          Consultar hardware
-        </button>
-        <p id="resultado-dados-maquina" class="mensagem-status"></p>
-
-        <form id="form-log" class="formulario-busca">
-          <label for="texto-log">Registrar log em arquivo</label>
-          <input
-            type="text"
-            id="texto-log"
-            placeholder="Ex: app iniciado"
-            autocomplete="off"
-          />
-          <button type="submit">Salvar log</button>
-        </form>
-        <p id="status-log" class="mensagem-status"></p>
-      </section>
-
+     
       <section class="secao-saldo">
         <div class="cartoes-saldo">
           <div class="cartao-stat cartao-stat--receita">
@@ -66,26 +44,6 @@
             Recalcular
           </button>
         </div>
-      </section>
-
-      <section class="secao">
-        <h2>Formas de pagamento aceitas</h2>
-
-        <form id="form-busca-pagamento" class="formulario-busca">
-          <label for="busca-formas-pagamento">Buscar forma de pagamento</label>
-          <input
-            type="text"
-            id="busca-formas-pagamento"
-            name="busca-formas-pagamento"
-            placeholder="Ex: pix"
-            autocomplete="off"
-          />
-          <button type="submit">Buscar</button>
-        </form>
-        <p id="erro-busca-pagamento" class="mensagem-erro" role="alert"></p>
-        <p id="status-busca-pagamento" class="mensagem-status"></p>
-
-        <ul id="lista-formas-pagamento" class="chips"></ul>
       </section>
 
       <nav class="abas" id="nav-abas">

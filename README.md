@@ -35,7 +35,7 @@ Aplicação desktop desenvolvida para o Projeto Integrador da UC5 - Desenvolver 
 
 ### Formas de Pagamento
 
-- Consulta de formas de pagamento
+-
 - Busca por nome
 - Integração com transações
 
@@ -47,6 +47,7 @@ O sistema é capaz de identificar:
 
 - Valor da transação
 - Data da transação
+- Preenche forma de pagamento automaticamente
 
 a partir da imagem enviada pelo usuário.
 

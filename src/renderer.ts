@@ -232,18 +232,24 @@ formBuscaPagamentoEl?.addEventListener("submit", async (evento) => {
   await carregarFormasPagamento(termo);
 });
 
-inputBuscaPagamentoEl?.addEventListener("input", () => {
-  if (!listaFormasPagamentoEl) return;
+inputBuscaPagamentoEl?.addEventListener('input', async () => {
+  const termo = inputBuscaPagamentoEl.value.trim()
 
-  const termoDigitado = inputBuscaPagamentoEl.value.trim().toLowerCase();
-  const itens = listaFormasPagamentoEl.querySelectorAll("li");
+  if (termo.length === 0) {
+    await carregarFormasPagamento()
+    return
+  }
 
-  itens.forEach((item) => {
-    const texto = item.textContent?.toLowerCase() ?? "";
-    const corresponde = texto.includes(termoDigitado);
-    item.style.display = corresponde ? "" : "none";
-  });
-});
+  if (termo.length < 2) {
+    return
+  }
+
+  try {
+    await carregarFormasPagamento(termo)
+  } catch (erro) {
+    console.error(erro)
+  }
+})
 
 // ===================== SALDO =====================
 
