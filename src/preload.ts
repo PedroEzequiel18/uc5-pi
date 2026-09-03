@@ -3,12 +3,9 @@ import { contextBridge, ipcRenderer } from "electron";
 contextBridge.exposeInMainWorld("api", {
   ping: () => ipcRenderer.invoke("canal-ping"),
   obterDadosMaquina: () => ipcRenderer.invoke("obter-dados-maquina"),
-  escreverLog: (mensagem: string) =>
-    ipcRenderer.invoke("registrar-log", mensagem),
-  listarFormasPagamento: (termo?: string) =>
-    ipcRenderer.invoke("listar-formas-pagamento", termo),
-  lerComprovantePix: (imagemBase64: string) =>
-    ipcRenderer.invoke("ler-comprovante-pix", imagemBase64),
+  escreverLog: (mensagem: string) => ipcRenderer.invoke("registrar-log", mensagem),
+  listarFormasPagamento: (termo?: string) => ipcRenderer.invoke("listar-formas-pagamento", termo),
+  lerComprovantePix: (imagemBase64: string) => ipcRenderer.invoke("ler-comprovante-pix", imagemBase64),
 
   listarCategorias: () => ipcRenderer.invoke("listar-categorias"),
   criarCategoria: (nome: string, tipo: "receita" | "despesa") =>
@@ -29,15 +26,7 @@ contextBridge.exposeInMainWorld("api", {
     data: string,
     idCategoria: number,
     idFormaPagamento: number | null,
-  ) =>
-    ipcRenderer.invoke(
-      "criar-transacao",
-      descricao,
-      valor,
-      data,
-      idCategoria,
-      idFormaPagamento,
-    ),
+  ) => ipcRenderer.invoke("criar-transacao", descricao, valor, data, idCategoria, idFormaPagamento),
   atualizarTransacao: (
     id: number,
     descricao: string,

@@ -33,11 +33,18 @@ Aplicação desktop desenvolvida para o Projeto Integrador da UC5 - Desenvolver 
 - Total de despesas
 - Cálculo automático do saldo
 
+### Resumo Mensal
+
+- Receitas do mês
+- Despesas do mês
+- Total movimentado
+- Transações registradas
+
 ### Formas de Pagamento
 
--
-- Busca por nome
 - Integração com transações
+- Seleção no cadastro de transações
+- Preenchimento automático da forma PIX durante a leitura de comprovantes
 
 ### OCR de Comprovantes PIX
 
@@ -47,7 +54,7 @@ O sistema é capaz de identificar:
 
 - Valor da transação
 - Data da transação
-- Preenche forma de pagamento automaticamente
+- Forma de pagamento PIX
 
 a partir da imagem enviada pelo usuário.
 
@@ -95,9 +102,9 @@ README.md
 
 ## Banco de Dados
 
-O banco de dados é PostgreSQL.
+O banco de dados utilizado é PostgreSQL.
 
-Antes de executar a aplicação, execute o script:
+Antes de executar a aplicação execute:
 
 ```text
 sql/schema.sql
@@ -121,102 +128,4 @@ Crie um arquivo `.env` na raiz do projeto:
 DATABASE_URL=sua_connection_string_postgresql
 ```
 
-Exemplo de modelo disponível em:
-
-```text
-.env.example
-```
-
----
-
-## Instalação
-
-Instalar dependências:
-
-```bash
-npm install
-```
-
----
-
-## Executar em Desenvolvimento
-
-```bash
-npm run dev
-```
-
----
-
-## Gerar Instalador
-
-```bash
-npm run build
-```
-
-O instalador será gerado em:
-
-```text
-release/
-```
-
----
-
-## Comunicação IPC Implementada
-
-- canal-ping
-- obter-dados-maquina
-- registrar-log
-- listar-formas-pagamento
-- ler-comprovante-pix
-- listar-categorias
-- criar-categoria
-- atualizar-categoria
-- deletar-categoria
-- listar-transacoes
-- criar-transacao
-- atualizar-transacao
-- deletar-transacao
-- obter-saldo
-
----
-
-## Segurança
-
-- contextIsolation habilitado
-- nodeIntegration desabilitado
-- Banco acessado somente pelo processo Main
-- Credenciais armazenadas em arquivo .env
-- Consultas SQL parametrizadas
-- Tratamento de erros em todos os handlers
-
----
-
-## Referências
-
-Electron
-
-https://www.electronjs.org
-
-Vite
-
-https://vitejs.dev
-
-PostgreSQL Driver (pg)
-
-https://node-postgres.com
-
-Tesseract.js
-
-https://tesseract.projectnaptha.com
-
----
-
-## Autor
-
-Pedro Ezequiel Pontes da Silva
-
-Projeto Integrador - UC5
-
-Desenvolver Aplicações Desktop
-
-SENAC
+Modelo disponível 

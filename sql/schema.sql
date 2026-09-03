@@ -13,22 +13,20 @@ CREATE TABLE IF NOT EXISTS formas_pagamento (
 CREATE TABLE IF NOT EXISTS transacoes (
   id SERIAL PRIMARY KEY,
   descricao TEXT NOT NULL,
-  valor NUMERIC(10,2) NOT NULL,
+  valor NUMERIC(10, 2) NOT NULL,
   data DATE NOT NULL,
   id_categoria INTEGER NOT NULL REFERENCES categorias(id),
   id_forma_pagamento INTEGER REFERENCES formas_pagamento(id)
 );
 
-CREATE INDEX IF NOT EXISTS idx_transacoes_id_categoria
-ON transacoes(id_categoria);
+CREATE INDEX IF NOT EXISTS idx_transacoes_id_categoria ON transacoes(id_categoria);
 
-CREATE INDEX IF NOT EXISTS idx_transacoes_id_forma_pagamento
-ON transacoes(id_forma_pagamento);
+CREATE INDEX IF NOT EXISTS idx_transacoes_id_forma_pagamento ON transacoes(id_forma_pagamento);
 
-CREATE INDEX IF NOT EXISTS dados_de_transações_idx
-ON transacoes(data);
+CREATE INDEX IF NOT EXISTS dados_de_transações_idx ON transacoes(data);
 
-INSERT INTO formas_pagamento (nome, descricao)
+INSERT INTO
+  formas_pagamento (nome, descricao)
 VALUES
   ('Dinheiro', 'Pagamento em espécie'),
   ('Pix', 'Transferência instantânea'),

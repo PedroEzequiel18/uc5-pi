@@ -86,52 +86,93 @@ interface Transacao {
 }
 
 function formatarMoeda(valor: number): string {
-  return valor.toLocaleString("pt-BR", {
-    style: "currency",
-    currency: "BRL",
+  return valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
+
+// ===================== HELPERS DE DOM =====================
+
+function $<T extends HTMLElement = HTMLElement>(id: string): T | null {
+  return document.getElementById(id) as T | null;
+}
+
+function definirTexto(el: HTMLElement | null, texto: string) {
+  if (el) el.textContent = texto;
+}
+
+// Erros vindos do IPC chegam com o prefixo padrão do Electron -
+// aqui a gente tira isso pra mostrar só a mensagem de negócio.
+function mensagemDeErro(erro: unknown): string | null {
+  if (!(erro instanceof Error)) return null;
+  return erro.message.replace(/^Error invoking remote method '.*?': Error:\s*/, "");
+}
+
+function criarItemComAcoes(
+  texto: string,
+  acoes: { rotulo: string; aoClicar: () => void }[] = [],
+): HTMLLIElement {
+  const item = document.createElement("li");
+  item.textContent = texto;
+  acoes.forEach(({ rotulo, aoClicar }) => {
+    const botao = document.createElement("button");
+    botao.textContent = rotulo;
+    botao.addEventListener("click", aoClicar);
+    item.appendChild(botao);
   });
+  return item;
+}
+
+// Preenche um <select> preservando a opção padrão (primeira) e o valor
+// selecionado antes da atualização, se ele ainda existir na nova lista.
+function preencherSelect<T extends { id: number }>(
+  select: HTMLSelectElement | null,
+  itens: T[],
+  rotulo: (item: T) => string,
+) {
+  if (!select) return;
+  const valorAtual = select.value;
+  const primeiraOpcao = select.options[0];
+  select.innerHTML = "";
+  select.appendChild(primeiraOpcao);
+
+  itens.forEach((item) => {
+    const opcao = document.createElement("option");
+    opcao.value = String(item.id);
+    opcao.textContent = rotulo(item);
+    select.appendChild(opcao);
+  });
+  select.value = valorAtual;
 }
 
 // ===================== PING (boilerplate) =====================
 
-const botaoPing = document.getElementById("btn-ping");
-const respostaPing = document.getElementById("resposta");
+const botaoPing = $("btn-ping");
+const respostaPing = $("resposta");
 
 botaoPing?.addEventListener("click", async () => {
-  const resposta = await window.api.ping();
-  if (respostaPing) respostaPing.textContent = resposta;
+  definirTexto(respostaPing, await window.api.ping());
 });
 
 // ===================== DADOS DA MÁQUINA E LOG (sem depender do banco) =====================
 
-const botaoDadosMaquina = document.getElementById("btn-dados-maquina");
-const resultadoDadosMaquinaEl = document.getElementById(
-  "resultado-dados-maquina",
-);
+const botaoDadosMaquina = $("btn-dados-maquina");
+const resultadoDadosMaquinaEl = $("resultado-dados-maquina");
 
 botaoDadosMaquina?.addEventListener("click", async () => {
   const dados = await window.api.obterDadosMaquina();
-  if (resultadoDadosMaquinaEl) {
-    resultadoDadosMaquinaEl.textContent = `${dados.plataforma} - ${dados.processador} - ${dados.memoriaRam}`;
-  }
+  definirTexto(
+    resultadoDadosMaquinaEl,
+    `${dados.plataforma} - ${dados.processador} - ${dados.memoriaRam}`,
+  );
 });
 
-const formLogEl = document.getElementById("form-log") as HTMLFormElement | null;
-const inputLogEl = document.getElementById(
-  "texto-log",
-) as HTMLInputElement | null;
-const statusLogEl = document.getElementById("status-log");
+const formLogEl = $<HTMLFormElement>("form-log");
+const inputLogEl = $<HTMLInputElement>("texto-log");
+const statusLogEl = $("status-log");
 
 formLogEl?.addEventListener("submit", async (evento) => {
   evento.preventDefault();
-  const mensagem = inputLogEl?.value ?? "";
-  const salvou = await window.api.escreverLog(mensagem);
-
-  if (statusLogEl) {
-    statusLogEl.textContent = salvou
-      ? "Log salvo em logs.txt!"
-      : "Não foi possível salvar o log.";
-  }
+  const salvou = await window.api.escreverLog(inputLogEl?.value ?? "");
+  definirTexto(statusLogEl, salvou ? "Log salvo em logs.txt!" : "Não foi possível salvar o log.");
   if (salvou && inputLogEl) inputLogEl.value = "";
 });
 
@@ -143,11 +184,7 @@ const paineisAba = document.querySelectorAll<HTMLElement>(".aba-painel");
 botoesAba.forEach((botao) => {
   botao.addEventListener("click", () => {
     const abaAlvo = botao.dataset.aba;
-
-    botoesAba.forEach((outroBotao) => {
-      outroBotao.classList.toggle("ativo", outroBotao === botao);
-    });
-
+    botoesAba.forEach((outroBotao) => outroBotao.classList.toggle("ativo", outroBotao === botao));
     paineisAba.forEach((painel) => {
       painel.hidden = painel.dataset.abaPainel !== abaAlvo;
     });
@@ -156,93 +193,52 @@ botoesAba.forEach((botao) => {
 
 // ===================== FORMAS DE PAGAMENTO =====================
 
-const listaFormasPagamentoEl = document.getElementById(
-  "lista-formas-pagamento",
-);
-const formBuscaPagamentoEl = document.getElementById(
-  "form-busca-pagamento",
-) as HTMLFormElement | null;
-const inputBuscaPagamentoEl = document.getElementById(
-  "busca-formas-pagamento",
-) as HTMLInputElement | null;
-const erroBuscaPagamentoEl = document.getElementById("erro-busca-pagamento");
-const statusBuscaPagamentoEl = document.getElementById(
-  "status-busca-pagamento",
-);
+const listaFormasPagamentoEl = $("lista-formas-pagamento");
+const formBuscaPagamentoEl = $<HTMLFormElement>("form-busca-pagamento");
+const inputBuscaPagamentoEl = $<HTMLInputElement>("busca-formas-pagamento");
+const erroBuscaPagamentoEl = $("erro-busca-pagamento");
+const statusBuscaPagamentoEl = $("status-busca-pagamento");
 
-const selectTransacaoFormaPagamento = document.getElementById(
-  "transacao-forma-pagamento",
-) as HTMLSelectElement | null;
+const selectTransacaoFormaPagamento = $<HTMLSelectElement>("transacao-forma-pagamento");
 
 async function carregarFormasPagamento(termo?: string) {
   if (!listaFormasPagamentoEl) return;
 
   try {
     const formasPagamento = await window.api.listarFormasPagamento(termo);
-
-    if (erroBuscaPagamentoEl) erroBuscaPagamentoEl.textContent = "";
+    definirTexto(erroBuscaPagamentoEl, "");
     listaFormasPagamentoEl.innerHTML = "";
 
     if (formasPagamento.length === 0) {
-      if (statusBuscaPagamentoEl)
-        statusBuscaPagamentoEl.textContent =
-          "Nenhuma forma de pagamento encontrada.";
+      definirTexto(statusBuscaPagamentoEl, "Nenhuma forma de pagamento encontrada.");
       return;
     }
 
-    if (statusBuscaPagamentoEl) statusBuscaPagamentoEl.textContent = "";
-
+    definirTexto(statusBuscaPagamentoEl, "");
     formasPagamento.forEach((forma) => {
-      const item = document.createElement("li");
-      item.textContent = `${forma.nome} - ${forma.descricao}`;
-      listaFormasPagamentoEl.appendChild(item);
+      listaFormasPagamentoEl.appendChild(criarItemComAcoes(`${forma.nome} - ${forma.descricao}`));
     });
   } catch (erro: unknown) {
     listaFormasPagamentoEl.innerHTML = "";
-    if (statusBuscaPagamentoEl) statusBuscaPagamentoEl.textContent = "";
-    if (erroBuscaPagamentoEl && erro instanceof Error) {
-      erroBuscaPagamentoEl.textContent = erro.message;
-    }
+    definirTexto(statusBuscaPagamentoEl, "");
+    if (erro instanceof Error) definirTexto(erroBuscaPagamentoEl, erro.message);
   }
 }
 
 async function carregarSelectFormasPagamento() {
-  if (!selectTransacaoFormaPagamento) return;
-
   const formasPagamento = await window.api.listarFormasPagamento();
-
-  const valorAtual = selectTransacaoFormaPagamento.value;
-  const primeiraOpcao = selectTransacaoFormaPagamento.options[0];
-  selectTransacaoFormaPagamento.innerHTML = "";
-  selectTransacaoFormaPagamento.appendChild(primeiraOpcao);
-
-  formasPagamento.forEach((forma) => {
-    const opcao = document.createElement("option");
-    opcao.value = String(forma.id);
-    opcao.textContent = forma.nome;
-    selectTransacaoFormaPagamento.appendChild(opcao);
-  });
-
-  selectTransacaoFormaPagamento.value = valorAtual;
+  preencherSelect(selectTransacaoFormaPagamento, formasPagamento, (f) => f.nome);
 }
 
 formBuscaPagamentoEl?.addEventListener("submit", async (evento) => {
   evento.preventDefault();
-  const termo = inputBuscaPagamentoEl?.value ?? "";
-  await carregarFormasPagamento(termo);
+  await carregarFormasPagamento(inputBuscaPagamentoEl?.value ?? "");
 });
 
 inputBuscaPagamentoEl?.addEventListener("input", async () => {
   const termo = inputBuscaPagamentoEl.value.trim();
-
-  if (termo.length === 0) {
-    await carregarFormasPagamento();
-    return;
-  }
-
-  if (termo.length < 2) {
-    return;
-  }
+  if (termo.length === 0) return carregarFormasPagamento();
+  if (termo.length < 2) return;
 
   try {
     await carregarFormasPagamento(termo);
@@ -253,77 +249,40 @@ inputBuscaPagamentoEl?.addEventListener("input", async () => {
 
 // ===================== SALDO =====================
 
-const botaoAtualizarSaldo = document.getElementById("btn-atualizar-saldo");
-const saldoReceitasEl = document.getElementById("saldo-receitas");
-const saldoDespesasEl = document.getElementById("saldo-despesas");
-const saldoTotalEl = document.getElementById("saldo-total");
-const resumoReceitasMesEl = document.getElementById("resumo-receitas-mes");
-
-const resumoDespesasMesEl = document.getElementById("resumo-despesas-mes");
-
-const resumoTotalMesEl = document.getElementById("resumo-total-mes");
-
-const resumoQuantidadeTransacoesEl = document.getElementById(
-  "resumo-quantidade-transacoes",
-);
+const botaoAtualizarSaldo = $("btn-atualizar-saldo");
+const saldoReceitasEl = $("saldo-receitas");
+const saldoDespesasEl = $("saldo-despesas");
+const saldoTotalEl = $("saldo-total");
+const resumoReceitasMesEl = $("resumo-receitas-mes");
+const resumoDespesasMesEl = $("resumo-despesas-mes");
+const resumoTotalMesEl = $("resumo-total-mes");
+const resumoQuantidadeTransacoesEl = $("resumo-quantidade-transacoes");
 
 async function atualizarSaldo() {
   const { totalReceitas, totalDespesas, saldo } = await window.api.obterSaldo();
 
-  if (saldoReceitasEl) {
-    saldoReceitasEl.textContent = `Receitas: ${formatarMoeda(totalReceitas)}`;
-  }
-
-  if (saldoDespesasEl) {
-    saldoDespesasEl.textContent = `Despesas: ${formatarMoeda(totalDespesas)}`;
-  }
-
-  if (saldoTotalEl) {
-    saldoTotalEl.textContent = `Saldo: ${formatarMoeda(saldo)}`;
-    const totalMovimentado = totalReceitas + totalDespesas;
-
-    if (resumoReceitasMesEl) {
-      resumoReceitasMesEl.textContent = `Receitas do mês: ${formatarMoeda(totalReceitas)}`;
-    }
-
-    if (resumoDespesasMesEl) {
-      resumoDespesasMesEl.textContent = `Despesas do mês: ${formatarMoeda(totalDespesas)}`;
-    }
-
-    if (resumoTotalMesEl) {
-      resumoTotalMesEl.textContent = `Total movimentado: ${formatarMoeda(totalMovimentado)}`;
-    }
-  }
+  definirTexto(saldoReceitasEl, `Receitas: ${formatarMoeda(totalReceitas)}`);
+  definirTexto(saldoDespesasEl, `Despesas: ${formatarMoeda(totalDespesas)}`);
+  definirTexto(saldoTotalEl, `Saldo: ${formatarMoeda(saldo)}`);
+  definirTexto(resumoReceitasMesEl, `Receitas do mês: ${formatarMoeda(totalReceitas)}`);
+  definirTexto(resumoDespesasMesEl, `Despesas do mês: ${formatarMoeda(totalDespesas)}`);
+  definirTexto(resumoTotalMesEl, `Total movimentado: ${formatarMoeda(totalReceitas + totalDespesas)}`);
 }
 
 botaoAtualizarSaldo?.addEventListener("click", atualizarSaldo);
 
 // ===================== CATEGORIAS =====================
 
-const formCategoria = document.getElementById(
-  "form-categoria",
-) as HTMLFormElement | null;
-const categoriaIdInput = document.getElementById(
-  "categoria-id",
-) as HTMLInputElement | null;
-const categoriaNomeInput = document.getElementById(
-  "categoria-nome",
-) as HTMLInputElement | null;
-const categoriaTipoSelect = document.getElementById(
-  "categoria-tipo",
-) as HTMLSelectElement | null;
-const listaCategoriasEl = document.getElementById("lista-categorias");
-const msgCategoriaEl = document.getElementById("msg-categoria");
-const botaoCancelarCategoria = document.getElementById(
-  "btn-cancelar-categoria",
-);
+const formCategoria = $<HTMLFormElement>("form-categoria");
+const categoriaIdInput = $<HTMLInputElement>("categoria-id");
+const categoriaNomeInput = $<HTMLInputElement>("categoria-nome");
+const categoriaTipoSelect = $<HTMLSelectElement>("categoria-tipo");
+const listaCategoriasEl = $("lista-categorias");
+const msgCategoriaEl = $("msg-categoria");
+const botaoCancelarCategoria = $("btn-cancelar-categoria");
 
-const selectTransacaoCategoria = document.getElementById(
-  "transacao-categoria",
-) as HTMLSelectElement | null;
-const selectFiltroCategoria = document.getElementById(
-  "filtro-categoria",
-) as HTMLSelectElement | null;
+const selectTransacaoCategoria = $<HTMLSelectElement>("transacao-categoria");
+const selectFiltroCategoria = $<HTMLSelectElement>("filtro-categoria");
 
 function limparFormularioCategoria() {
   if (categoriaIdInput) categoriaIdInput.value = "";
@@ -336,61 +295,39 @@ async function carregarCategorias() {
 
   if (listaCategoriasEl) {
     listaCategoriasEl.innerHTML = "";
-
     categorias.forEach((categoria) => {
-      const item = document.createElement("li");
-      item.textContent = `${categoria.nome} (${categoria.tipo}) `;
-
-      const botaoEditar = document.createElement("button");
-      botaoEditar.textContent = "Editar";
-      botaoEditar.addEventListener("click", () => {
-        if (categoriaIdInput) categoriaIdInput.value = String(categoria.id);
-        if (categoriaNomeInput) categoriaNomeInput.value = categoria.nome;
-        if (categoriaTipoSelect) categoriaTipoSelect.value = categoria.tipo;
-      });
-
-      const botaoExcluir = document.createElement("button");
-      botaoExcluir.textContent = "Excluir";
-      botaoExcluir.addEventListener("click", async () => {
-        try {
-          await window.api.deletarCategoria(categoria.id);
-          if (msgCategoriaEl)
-            msgCategoriaEl.textContent = "Categoria excluída!";
-          await carregarCategorias();
-          await carregarTransacoes();
-        } catch (erro: unknown) {
-          if (msgCategoriaEl && erro instanceof Error) {
-            msgCategoriaEl.textContent = erro.message.replace(
-              /^Error invoking remote method '.*?': Error:\s*/,
-              "",
-            );
-          }
-        }
-      });
-
-      item.appendChild(botaoEditar);
-      item.appendChild(botaoExcluir);
-      listaCategoriasEl.appendChild(item);
+      listaCategoriasEl.appendChild(
+        criarItemComAcoes(`${categoria.nome} (${categoria.tipo}) `, [
+          {
+            rotulo: "Editar",
+            aoClicar: () => {
+              if (categoriaIdInput) categoriaIdInput.value = String(categoria.id);
+              if (categoriaNomeInput) categoriaNomeInput.value = categoria.nome;
+              if (categoriaTipoSelect) categoriaTipoSelect.value = categoria.tipo;
+            },
+          },
+          {
+            rotulo: "Excluir",
+            aoClicar: async () => {
+              try {
+                await window.api.deletarCategoria(categoria.id);
+                definirTexto(msgCategoriaEl, "Categoria excluída!");
+                await carregarCategorias();
+                await carregarTransacoes();
+              } catch (erro: unknown) {
+                const mensagem = mensagemDeErro(erro);
+                if (mensagem) definirTexto(msgCategoriaEl, mensagem);
+              }
+            },
+          },
+        ]),
+      );
     });
   }
 
-  [selectTransacaoCategoria, selectFiltroCategoria].forEach((select) => {
-    if (!select) return;
-
-    const valorAtual = select.value;
-    const primeiraOpcao = select.options[0];
-    select.innerHTML = "";
-    select.appendChild(primeiraOpcao);
-
-    categorias.forEach((categoria) => {
-      const opcao = document.createElement("option");
-      opcao.value = String(categoria.id);
-      opcao.textContent = `${categoria.nome} (${categoria.tipo})`;
-      select.appendChild(opcao);
-    });
-
-    select.value = valorAtual;
-  });
+  [selectTransacaoCategoria, selectFiltroCategoria].forEach((select) =>
+    preencherSelect(select, categorias, (c) => `${c.nome} (${c.tipo})`),
+  );
 }
 
 formCategoria?.addEventListener("submit", async (evento) => {
@@ -403,21 +340,17 @@ formCategoria?.addEventListener("submit", async (evento) => {
   try {
     if (id) {
       await window.api.atualizarCategoria(Number(id), nome, tipo);
-      if (msgCategoriaEl) msgCategoriaEl.textContent = "Categoria atualizada!";
+      definirTexto(msgCategoriaEl, "Categoria atualizada!");
     } else {
       await window.api.criarCategoria(nome, tipo);
-      if (msgCategoriaEl) msgCategoriaEl.textContent = "Categoria criada!";
+      definirTexto(msgCategoriaEl, "Categoria criada!");
     }
 
     limparFormularioCategoria();
     await carregarCategorias();
   } catch (erro: unknown) {
-    if (msgCategoriaEl && erro instanceof Error) {
-      msgCategoriaEl.textContent = erro.message.replace(
-        /^Error invoking remote method '.*?': Error:\s*/,
-        "",
-      );
-    }
+    const mensagem = mensagemDeErro(erro);
+    if (mensagem) definirTexto(msgCategoriaEl, mensagem);
   }
 });
 
@@ -425,33 +358,19 @@ botaoCancelarCategoria?.addEventListener("click", limparFormularioCategoria);
 
 // ===================== TRANSAÇÕES =====================
 
-const formTransacao = document.getElementById(
-  "form-transacao",
-) as HTMLFormElement | null;
-const transacaoIdInput = document.getElementById(
-  "transacao-id",
-) as HTMLInputElement | null;
-const transacaoDescricaoInput = document.getElementById(
-  "transacao-descricao",
-) as HTMLInputElement | null;
-const transacaoValorInput = document.getElementById(
-  "transacao-valor",
-) as HTMLInputElement | null;
-const transacaoDataInput = document.getElementById(
-  "transacao-data",
-) as HTMLInputElement | null;
-const listaTransacoesEl = document.getElementById("lista-transacoes");
-const msgTransacaoEl = document.getElementById("msg-transacao");
-const botaoCancelarTransacao = document.getElementById(
-  "btn-cancelar-transacao",
-);
+const formTransacao = $<HTMLFormElement>("form-transacao");
+const transacaoIdInput = $<HTMLInputElement>("transacao-id");
+const transacaoDescricaoInput = $<HTMLInputElement>("transacao-descricao");
+const transacaoValorInput = $<HTMLInputElement>("transacao-valor");
+const transacaoDataInput = $<HTMLInputElement>("transacao-data");
+const listaTransacoesEl = $("lista-transacoes");
+const msgTransacaoEl = $("msg-transacao");
+const botaoCancelarTransacao = $("btn-cancelar-transacao");
 
 // ===================== LEITOR DE COMPROVANTE PIX =====================
 
-const inputComprovanteEl = document.getElementById(
-  "input-comprovante-pix",
-) as HTMLInputElement | null;
-const statusComprovanteEl = document.getElementById("status-comprovante-pix");
+const inputComprovanteEl = $<HTMLInputElement>("input-comprovante-pix");
+const statusComprovanteEl = $("status-comprovante-pix");
 
 function lerArquivoComoBase64(arquivo: File): Promise<string> {
   return new Promise((resolve, rejeitar) => {
@@ -466,57 +385,40 @@ inputComprovanteEl?.addEventListener("change", async () => {
   const arquivo = inputComprovanteEl.files?.[0];
   if (!arquivo) return;
 
-  if (statusComprovanteEl)
-    statusComprovanteEl.textContent = "Lendo comprovante, aguarde...";
+  definirTexto(statusComprovanteEl, "Lendo comprovante, aguarde...");
 
   try {
     const imagemBase64 = await lerArquivoComoBase64(arquivo);
-    const { valorDetectado, dataDetectada } =
-      await window.api.lerComprovantePix(imagemBase64);
+    const { valorDetectado, dataDetectada } = await window.api.lerComprovantePix(imagemBase64);
 
-    if (transacaoValorInput && valorDetectado !== null) {
-      transacaoValorInput.value = String(valorDetectado);
-    }
-    if (transacaoDataInput && dataDetectada !== null) {
-      transacaoDataInput.value = dataDetectada;
-    }
+    if (transacaoValorInput && valorDetectado !== null) transacaoValorInput.value = String(valorDetectado);
+    if (transacaoDataInput && dataDetectada !== null) transacaoDataInput.value = dataDetectada;
+
     if (selectTransacaoFormaPagamento) {
       const opcaoPix = Array.from(selectTransacaoFormaPagamento.options).find(
         (opcao) => opcao.textContent?.toLowerCase() === "pix",
       );
-
-      if (opcaoPix) {
-        selectTransacaoFormaPagamento.value = opcaoPix.value;
-      }
+      if (opcaoPix) selectTransacaoFormaPagamento.value = opcaoPix.value;
     }
 
-    if (valorDetectado === null && dataDetectada === null) {
-      if (statusComprovanteEl)
-        statusComprovanteEl.textContent =
-          "Não consegui identificar valor ou data - preencha manualmente.";
-    } else {
-      if (statusComprovanteEl)
-        statusComprovanteEl.textContent =
-          "Comprovante lido! Confira os dados antes de salvar.";
-    }
+    definirTexto(
+      statusComprovanteEl,
+      valorDetectado === null && dataDetectada === null
+        ? "Não consegui identificar valor ou data - preencha manualmente."
+        : "Comprovante lido! Confira os dados antes de salvar.",
+    );
   } catch (erro: unknown) {
-    if (statusComprovanteEl && erro instanceof Error) {
-      statusComprovanteEl.textContent = `Erro ao ler comprovante: ${erro.message}`;
+    if (erro instanceof Error) {
+      definirTexto(statusComprovanteEl, `Erro ao ler comprovante: ${erro.message}`);
     }
   }
 });
 
-const filtroTipoSelect = document.getElementById(
-  "filtro-tipo",
-) as HTMLSelectElement | null;
-const filtroDataInicioInput = document.getElementById(
-  "filtro-data-inicio",
-) as HTMLInputElement | null;
-const filtroDataFimInput = document.getElementById(
-  "filtro-data-fim",
-) as HTMLInputElement | null;
-const botaoFiltrar = document.getElementById("btn-filtrar");
-const botaoLimparFiltro = document.getElementById("btn-limpar-filtro");
+const filtroTipoSelect = $<HTMLSelectElement>("filtro-tipo");
+const filtroDataInicioInput = $<HTMLInputElement>("filtro-data-inicio");
+const filtroDataFimInput = $<HTMLInputElement>("filtro-data-fim");
+const botaoFiltrar = $("btn-filtrar");
+const botaoLimparFiltro = $("btn-limpar-filtro");
 
 function limparFormularioTransacao() {
   if (transacaoIdInput) transacaoIdInput.value = "";
@@ -529,65 +431,53 @@ function limparFormularioTransacao() {
 
 async function carregarTransacoes() {
   const filtros = {
-    tipo: (filtroTipoSelect?.value || undefined) as
-      | "receita"
-      | "despesa"
-      | undefined,
-    idCategoria: selectFiltroCategoria?.value
-      ? Number(selectFiltroCategoria.value)
-      : undefined,
+    tipo: (filtroTipoSelect?.value || undefined) as "receita" | "despesa" | undefined,
+    idCategoria: selectFiltroCategoria?.value ? Number(selectFiltroCategoria.value) : undefined,
     dataInicio: filtroDataInicioInput?.value || undefined,
     dataFim: filtroDataFimInput?.value || undefined,
   };
 
   const transacoes = await window.api.listarTransacoes(filtros);
-  if (resumoQuantidadeTransacoesEl) {
-    resumoQuantidadeTransacoesEl.textContent = `Transações registradas: ${transacoes.length}`;
-  }
+  definirTexto(resumoQuantidadeTransacoesEl, `Transações registradas: ${transacoes.length}`);
 
   if (!listaTransacoesEl) return;
-
   listaTransacoesEl.innerHTML = "";
 
   transacoes.forEach((transacao) => {
-    const item = document.createElement("li");
     const valorFormatado = formatarMoeda(Number(transacao.valor));
     const dataFormatada = new Date(transacao.data).toLocaleDateString("pt-BR");
     const sufixoFormaPagamento = transacao.forma_pagamento_nome
       ? ` · ${transacao.forma_pagamento_nome}`
       : "";
+    const texto = `${dataFormatada} - ${transacao.descricao} - ${valorFormatado} (${transacao.categoria_nome}${sufixoFormaPagamento}) `;
 
-    item.textContent = `${dataFormatada} - ${transacao.descricao} - ${valorFormatado} (${transacao.categoria_nome}${sufixoFormaPagamento}) `;
-
-    const botaoEditar = document.createElement("button");
-    botaoEditar.textContent = "Editar";
-    botaoEditar.addEventListener("click", () => {
-      if (transacaoIdInput) transacaoIdInput.value = String(transacao.id);
-      if (transacaoDescricaoInput)
-        transacaoDescricaoInput.value = transacao.descricao;
-      if (transacaoValorInput)
-        transacaoValorInput.value = String(transacao.valor);
-      if (transacaoDataInput)
-        transacaoDataInput.value = transacao.data.slice(0, 10);
-      if (selectTransacaoCategoria)
-        selectTransacaoCategoria.value = String(transacao.id_categoria);
-      if (selectTransacaoFormaPagamento)
-        selectTransacaoFormaPagamento.value = transacao.id_forma_pagamento
-          ? String(transacao.id_forma_pagamento)
-          : "";
-    });
-
-    const botaoExcluir = document.createElement("button");
-    botaoExcluir.textContent = "Excluir";
-    botaoExcluir.addEventListener("click", async () => {
-      await window.api.deletarTransacao(transacao.id);
-      await carregarTransacoes();
-      await atualizarSaldo();
-    });
-
-    item.appendChild(botaoEditar);
-    item.appendChild(botaoExcluir);
-    listaTransacoesEl.appendChild(item);
+    listaTransacoesEl.appendChild(
+      criarItemComAcoes(texto, [
+        {
+          rotulo: "Editar",
+          aoClicar: () => {
+            if (transacaoIdInput) transacaoIdInput.value = String(transacao.id);
+            if (transacaoDescricaoInput) transacaoDescricaoInput.value = transacao.descricao;
+            if (transacaoValorInput) transacaoValorInput.value = String(transacao.valor);
+            if (transacaoDataInput) transacaoDataInput.value = transacao.data.slice(0, 10);
+            if (selectTransacaoCategoria) selectTransacaoCategoria.value = String(transacao.id_categoria);
+            if (selectTransacaoFormaPagamento) {
+              selectTransacaoFormaPagamento.value = transacao.id_forma_pagamento
+                ? String(transacao.id_forma_pagamento)
+                : "";
+            }
+          },
+        },
+        {
+          rotulo: "Excluir",
+          aoClicar: async () => {
+            await window.api.deletarTransacao(transacao.id);
+            await carregarTransacoes();
+            await atualizarSaldo();
+          },
+        },
+      ]),
+    );
   });
 }
 
@@ -605,41 +495,23 @@ formTransacao?.addEventListener("submit", async (evento) => {
 
   try {
     if (id) {
-      await window.api.atualizarTransacao(
-        Number(id),
-        descricao,
-        valor,
-        data,
-        idCategoria,
-        idFormaPagamento,
-      );
-      if (msgTransacaoEl) msgTransacaoEl.textContent = "Transação atualizada!";
+      await window.api.atualizarTransacao(Number(id), descricao, valor, data, idCategoria, idFormaPagamento);
+      definirTexto(msgTransacaoEl, "Transação atualizada!");
     } else {
-      await window.api.criarTransacao(
-        descricao,
-        valor,
-        data,
-        idCategoria,
-        idFormaPagamento,
-      );
-      if (msgTransacaoEl) msgTransacaoEl.textContent = "Transação criada!";
+      await window.api.criarTransacao(descricao, valor, data, idCategoria, idFormaPagamento);
+      definirTexto(msgTransacaoEl, "Transação criada!");
     }
 
     limparFormularioTransacao();
     await carregarTransacoes();
     await atualizarSaldo();
   } catch (erro: unknown) {
-    if (msgTransacaoEl && erro instanceof Error) {
-      msgTransacaoEl.textContent = erro.message.replace(
-        /^Error invoking remote method '.*?': Error:\s*/,
-        "",
-      );
-    }
+    const mensagem = mensagemDeErro(erro);
+    if (mensagem) definirTexto(msgTransacaoEl, mensagem);
   }
 });
 
 botaoCancelarTransacao?.addEventListener("click", limparFormularioTransacao);
-
 botaoFiltrar?.addEventListener("click", carregarTransacoes);
 
 botaoLimparFiltro?.addEventListener("click", () => {
