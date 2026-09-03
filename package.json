@@ -6,7 +6,7 @@
   "author": "Pedro Ezequiel Pontes da Silva",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build && electron-builder",
+    "build:win": "tsc && vite build && electron-builder",
     "start": "vite"
   },
   "dependencies": {
